@@ -39,16 +39,30 @@ The system uses structured data models for:
 - Advanced workflow designer with drag-and-drop interface
 - AI-powered workflow optimization and analytics
 - Enterprise features with multi-user support and collaboration tools
+- Mobile client applications for iOS and Android
 
 ## Development Commands
 
-*Note: This project appears to be in specification/design phase. No build tools or package managers are currently configured.*
+```bash
+# Install dependencies
+npm install
 
-When implementing this system, typical commands would include:
-- Frontend: React/TypeScript with Electron for desktop app
+# Start development server
+npm start
+
+# Run in development mode with auto-reload
+npm run dev
+
+# Run tests (when implemented)
+npm test
+```
+
+Current technology stack:
+- Frontend: HTML/CSS/JavaScript with responsive design
 - Backend: Node.js with Express for API services
-- Database: SQLite for local storage, InfluxDB for time-series data
-- Testing: Jest for unit tests, Cypress for e2e testing
+- Real-time: WebSocket for live updates
+- File monitoring: Chokidar for file system watching
+- Future: React/TypeScript, Electron for desktop app, mobile clients
 
 ## Integration Points
 
@@ -90,3 +104,35 @@ The system exposes REST APIs for:
 - AES-256 encryption for sensitive configuration data
 - Input validation and sanitization for all API endpoints
 - Process isolation for Claude Code instances
+
+## Future Development Roadmap
+
+### Phase 1: Core Foundation (Completed)
+- Basic web interface with workflow visualization
+- Activity timeline with mock data
+- Status dashboard and controls
+- WebSocket infrastructure for real-time updates
+
+### Phase 2: Real Integration (Current)
+- Claude Code process management and communication
+- File system monitoring and change detection
+- Real-time activity parsing and display
+- Command execution and output capture
+
+### Phase 3: Advanced Features
+- Workflow designer with drag-and-drop interface
+- Custom workflow templates and sharing
+- Advanced analytics and performance metrics
+- Multi-project support and management
+
+### Phase 4: Mobile & Enterprise
+- **Mobile Client Development**:
+  - Native iOS app with SwiftUI
+  - Native Android app with Kotlin/Compose
+  - Cross-platform option with React Native or Flutter
+  - Mobile-optimized UI for monitoring on-the-go
+  - Push notifications for important events
+  - Offline viewing of cached activity data
+- Enterprise authentication and user management
+- Team collaboration and workflow sharing
+- Advanced security and compliance features

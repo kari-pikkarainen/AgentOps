@@ -112,6 +112,35 @@ temp/
 config/local.json
 config/production.json
 
+# API Keys and Secrets
+*.key
+*.pem
+*.p12
+*.pfx
+.secrets
+secrets.json
+api-keys.json
+credentials.json
+auth.json
+service-account.json
+*.env.secret
+*.env.production
+.env.*.local
+secrets/
+keys/
+certs/
+certificates/
+
+# Claude Code and AI service keys
+.anthropic/
+.openai/
+.claude-api-key
+.openai-api-key
+anthropic-api-key
+openai-api-key
+claude-config.json
+ai-service-config.json
+
 # Claude Code specific
 .claude/
 claude-code-cache/
