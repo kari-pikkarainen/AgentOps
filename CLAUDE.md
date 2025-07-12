@@ -62,6 +62,8 @@ Current technology stack:
 - Backend: Node.js with Express for API services
 - Real-time: WebSocket for live updates
 - File monitoring: Chokidar for file system watching
+- Process management: Node.js child_process
+- Activity parsing: Custom pattern recognition engine
 - Future: React/TypeScript, Electron for desktop app, mobile clients
 
 ## Integration Points
@@ -83,11 +85,12 @@ The system integrates with Claude Code instances through:
 ## API Structure
 
 The system exposes REST APIs for:
-- `/api/v1/workflows` - Workflow management
-- `/api/v1/activities` - Activity monitoring with WebSocket streaming
-- `/api/v1/claude-code/instances` - Claude Code instance management
-- `/api/v1/testing` - Test execution and coverage reporting
-- `/api/v1/config` - System configuration
+- `/api/v1/claude-code/instances` - Claude Code instance management (✅ Implemented)
+- `/api/v1/monitoring` - File system monitoring control (✅ Implemented)
+- `/api/v1/activities` - Activity monitoring with search/filter (✅ Implemented)
+- `/api/v1/workflows` - Workflow management (Future)
+- `/api/v1/testing` - Test execution and coverage reporting (Future)
+- `/api/v1/config` - System configuration (Future)
 
 ## Performance Requirements
 
@@ -113,17 +116,22 @@ The system exposes REST APIs for:
 - Status dashboard and controls
 - WebSocket infrastructure for real-time updates
 
-### Phase 2: Real Integration (Current)
-- Claude Code process management and communication
-- File system monitoring and change detection
-- Real-time activity parsing and display
-- Command execution and output capture
+### Phase 2: Real Integration (Completed)
+- ✅ Claude Code process management and communication
+- ✅ File system monitoring and change detection
+- ✅ Real-time activity parsing and display
+- ✅ Command execution and output capture
+- ✅ REST API endpoints and WebSocket integration
+- ✅ Activity search, filtering, and statistics
+- ✅ Multi-instance support (up to 10 concurrent)
 
-### Phase 3: Advanced Features
+### Phase 3: Advanced Features (Next)
 - Workflow designer with drag-and-drop interface
 - Custom workflow templates and sharing
 - Advanced analytics and performance metrics
 - Multi-project support and management
+- Enhanced UI with React/TypeScript
+- Testing dashboard with coverage visualization
 
 ### Phase 4: Mobile & Enterprise
 - **Mobile Client Development**:
