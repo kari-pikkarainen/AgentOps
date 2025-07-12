@@ -1,0 +1,197 @@
+# AgentOps Test Coverage Report
+
+Generated: 2025-07-12
+
+## Summary
+
+AgentOps now has a comprehensive testing infrastructure with Jest framework and test coverage reporting.
+
+### Overall Coverage
+- **Statements**: 60.06%
+- **Branches**: 78.26%
+- **Functions**: 89.74%
+- **Lines**: 60.06%
+
+### Test Results
+- **Total Tests**: 47 tests
+- **Passed**: 47 ✅
+- **Failed**: 0 ❌
+- **Test Suites**: 4
+
+## Module-by-Module Coverage
+
+### src/activity-parser.js
+- **Statements**: 96.37%
+- **Branches**: 70.96%
+- **Functions**: 100%
+- **Lines**: 96.37%
+- **Status**: ✅ Excellent coverage
+
+### src/process-manager.js
+- **Statements**: 86.3%
+- **Branches**: 90.9%
+- **Functions**: 100%
+- **Lines**: 86.3%
+- **Status**: ✅ Good coverage
+
+### src/file-monitor.js
+- **Statements**: 78.51%
+- **Branches**: 100%
+- **Functions**: 80%
+- **Lines**: 78.51%
+- **Status**: ⚠️ Adequate coverage
+
+### server.js
+- **Statements**: 0%
+- **Branches**: 0%
+- **Functions**: 0%
+- **Lines**: 0%
+- **Status**: ❌ No coverage (main server file)
+
+## Test Suites
+
+### 1. Activity Parser Tests (15 tests)
+**File**: `test/activity-parser.test.js`
+
+**Test Categories**:
+- Activity Parsing (4 tests)
+- Activity Storage (3 tests)
+- Activity Retrieval (4 tests)
+- Statistics (1 test)
+- Event Emission (3 tests)
+
+**Key Features Tested**:
+- ✅ Activity type detection (git, npm, error, test commands)
+- ✅ Importance scoring algorithm
+- ✅ Memory management and limits
+- ✅ Search and filtering
+- ✅ Event emission
+- ✅ Statistics generation
+
+### 2. Process Manager Tests (13 tests)
+**File**: `test/process-manager.test.js`
+
+**Test Categories**:
+- Instance Management (6 tests)
+- Concurrent Instance Limits (1 test)
+- Event Emission (3 tests)
+- Input Handling (2 tests)
+- ID Generation (1 test)
+
+**Key Features Tested**:
+- ✅ Process spawning and termination
+- ✅ Concurrent instance limits (max 10)
+- ✅ Event emission (created, terminated, output)
+- ✅ Input/output handling
+- ✅ Unique ID generation
+
+### 3. File Monitor Tests (13 tests)
+**File**: `test/file-monitor.test.js`
+
+**Test Categories**:
+- Monitoring Control (5 tests)
+- File Type Detection (2 tests)
+- Ignore Patterns (3 tests)
+- Path Utilities (2 tests)
+- Error Handling (1 test)
+
+**Key Features Tested**:
+- ✅ Directory monitoring start/stop
+- ✅ File type classification (code, config)
+- ✅ Ignore pattern management
+- ✅ Path utilities
+- ✅ Error handling
+
+### 4. Server API Tests (6 tests)
+**File**: `test/server.test.js`
+
+**Test Categories**:
+- Claude Code Instance Management (3 tests)
+- File Monitoring (1 test)
+- Activities (2 tests)
+
+**Key Features Tested**:
+- ✅ REST API endpoints
+- ✅ Instance CRUD operations
+- ✅ Monitoring status
+- ✅ Activity retrieval
+
+## Testing Infrastructure
+
+### Configuration
+- **Framework**: Jest
+- **Config File**: `jest.config.js`
+- **Coverage Provider**: v8
+- **Test Environment**: Node.js
+
+### Coverage Thresholds (Currently Not Met)
+- **Global Threshold**: 80% for all metrics
+- **Current Gap**: Need to improve server.js coverage
+
+### Scripts Available
+```bash
+npm test              # Run all tests
+npm run test:watch    # Run tests in watch mode
+npm run test:coverage # Run tests with coverage report
+```
+
+## Coverage Reports Generated
+
+### HTML Report
+- **Location**: `coverage/lcov-report/index.html`
+- **Interactive**: Drill-down coverage visualization
+- **Files**: Individual file coverage details
+
+### Machine-Readable Formats
+- **LCOV**: `coverage/lcov.info`
+- **Clover XML**: `coverage/clover.xml`
+- **JSON**: `coverage/coverage-final.json`
+
+## Recommendations for Improvement
+
+### High Priority
+1. **Server Integration Tests**: Add comprehensive tests for `server.js`
+   - WebSocket communication
+   - API integration with actual modules
+   - Error handling and middleware
+
+2. **File Monitor Edge Cases**: Improve coverage for:
+   - File change event handling
+   - Directory structure monitoring
+   - Performance under load
+
+### Medium Priority
+3. **End-to-End Tests**: Add integration tests that test the entire system
+4. **Performance Tests**: Add tests for concurrent operations
+5. **Error Scenarios**: More comprehensive error handling tests
+
+### Low Priority
+6. **Mock Refinement**: Improve mocking for more realistic test scenarios
+7. **Test Data Management**: Add fixtures and test data helpers
+
+## Quality Metrics
+
+### Code Quality
+- **All Tests Passing**: ✅
+- **No Test Failures**: ✅
+- **Consistent Test Structure**: ✅
+- **Good Test Naming**: ✅
+- **Proper Cleanup**: ✅
+
+### Coverage Quality
+- **Core Logic Covered**: ✅ (src/ modules)
+- **Edge Cases Tested**: ⚠️ (partial)
+- **Error Paths Tested**: ⚠️ (partial)
+- **Integration Coverage**: ❌ (needs work)
+
+## Next Steps
+
+1. **Immediate**: Add server.js integration tests to reach 80% coverage threshold
+2. **Short-term**: Improve file-monitor edge case coverage
+3. **Medium-term**: Add end-to-end integration tests
+4. **Long-term**: Implement automated testing in CI/CD pipeline
+
+---
+
+**Generated by AgentOps Testing Infrastructure**  
+**Copyright © 2025 Kari Pikkarainen. All rights reserved.**
