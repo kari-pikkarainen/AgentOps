@@ -39,6 +39,7 @@ function configureApiRoutes(app) {
 
     // File system browsing routes
     app.get('/api/v1/filesystem/browse', browseFolders);
+    app.post('/api/v1/filesystem/analyze', analyzeProject);
 }
 
 // Claude Code Instance Management Handlers
@@ -252,6 +253,143 @@ function browseFolders(req, res) {
     }
 }
 
+// Project Analysis Handler
+function analyzeProject(req, res) {
+    try {
+        const { projectPath } = req.body;
+        
+        if (!projectPath) {
+            return res.status(400).json({ error: 'Project path is required' });
+        }
+        
+        const normalizedPath = path.resolve(projectPath);
+        
+        if (!fs.existsSync(normalizedPath)) {
+            return res.status(404).json({ error: 'Project path does not exist' });
+        }
+        
+        const stats = fs.statSync(normalizedPath);
+        if (!stats.isDirectory()) {
+            return res.status(400).json({ error: 'Project path must be a directory' });
+        }
+        
+        // Analyze project structure
+        const analysis = {
+            projectName: path.basename(normalizedPath),
+            projectPath: normalizedPath,
+            type: 'Unknown',
+            technologies: [],
+            fileCount: 0,
+            status: 'Ready for development'
+        };
+        
+        try {
+            // Count files and detect technologies
+            const files = fs.readdirSync(normalizedPath);
+            analysis.fileCount = countFiles(normalizedPath);
+            
+            // Detect project type and technologies
+            if (files.includes('package.json')) {
+                analysis.type = 'Node.js Project';
+                analysis.technologies.push('JavaScript', 'Node.js');
+                
+                // Try to read package.json for more details
+                try {
+                    const packageJson = JSON.parse(fs.readFileSync(path.join(normalizedPath, 'package.json'), 'utf8'));
+                    if (packageJson.name) {
+                        analysis.projectName = packageJson.name;
+                    }
+                    
+                    // Detect frameworks
+                    const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
+                    if (dependencies.react) analysis.technologies.push('React');
+                    if (dependencies.vue) analysis.technologies.push('Vue.js');
+                    if (dependencies.angular) analysis.technologies.push('Angular');
+                    if (dependencies.express) analysis.technologies.push('Express');
+                    if (dependencies.typescript) analysis.technologies.push('TypeScript');
+                    
+                } catch (e) {
+                    // Ignore package.json parsing errors
+                }
+            } else if (files.includes('requirements.txt') || files.includes('setup.py')) {
+                analysis.type = 'Python Project';
+                analysis.technologies.push('Python');
+            } else if (files.includes('Cargo.toml')) {
+                analysis.type = 'Rust Project';
+                analysis.technologies.push('Rust');
+            } else if (files.includes('go.mod')) {
+                analysis.type = 'Go Project';
+                analysis.technologies.push('Go');
+            } else if (files.includes('pom.xml') || files.includes('build.gradle')) {
+                analysis.type = 'Java Project';
+                analysis.technologies.push('Java');
+            } else if (files.some(f => f.endsWith('.html') || f.endsWith('.css') || f.endsWith('.js'))) {
+                analysis.type = 'Web Project';
+                analysis.technologies.push('HTML', 'CSS', 'JavaScript');
+            }
+            
+            // Check for common files
+            if (files.includes('README.md') || files.includes('README.txt')) {
+                analysis.technologies.push('Documentation');
+            }
+            if (files.includes('.git')) {
+                analysis.technologies.push('Git');
+            }
+            if (files.includes('Dockerfile')) {
+                analysis.technologies.push('Docker');
+            }
+            
+            // Determine project status
+            if (analysis.fileCount === 0) {
+                analysis.status = 'Empty project directory';
+            } else if (analysis.fileCount < 5) {
+                analysis.status = 'Early stage project';
+            } else {
+                analysis.status = 'Active project - ready for continued development';
+            }
+            
+        } catch (analysisError) {
+            console.error('Error during project analysis:', analysisError);
+            analysis.status = 'Analysis completed with some limitations';
+        }
+        
+        res.json(analysis);
+        
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to analyze project', details: error.message });
+    }
+}
+
+// Helper function to count files recursively
+function countFiles(dirPath, maxDepth = 3, currentDepth = 0) {
+    if (currentDepth >= maxDepth) return 0;
+    
+    try {
+        const items = fs.readdirSync(dirPath);
+        let count = 0;
+        
+        for (const item of items) {
+            // Skip hidden files and common ignore patterns
+            if (item.startsWith('.') || ['node_modules', 'dist', 'build', '__pycache__'].includes(item)) {
+                continue;
+            }
+            
+            const itemPath = path.join(dirPath, item);
+            const stats = fs.statSync(itemPath);
+            
+            if (stats.isFile()) {
+                count++;
+            } else if (stats.isDirectory()) {
+                count += countFiles(itemPath, maxDepth, currentDepth + 1);
+            }
+        }
+        
+        return count;
+    } catch (error) {
+        return 0;
+    }
+}
+
 module.exports = {
     configureApiRoutes,
     // Export individual handlers for testing
@@ -266,5 +404,6 @@ module.exports = {
     getActivityStatistics,
     searchActivities,
     clearActivities,
-    browseFolders
+    browseFolders,
+    analyzeProject
 };

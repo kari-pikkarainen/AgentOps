@@ -14,6 +14,8 @@ class AgentOpsWorkflow {
         this.isPaused = false;
         this.websocket = null;
         this.activities = [];
+        this.projectType = 'new';
+        this.isExistingProject = false;
         
         this.init();
     }
@@ -32,9 +34,20 @@ class AgentOpsWorkflow {
         document.getElementById('start-execution-btn').addEventListener('click', () => this.startExecution());
 
         // Step 1: Project Specification
-        ['project-name', 'claude-specification', 'additional-notes'].forEach(id => {
-            document.getElementById(id).addEventListener('input', () => this.saveProjectData());
+        ['project-name', 'claude-specification', 'additional-notes', 'existing-project-name'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('input', () => this.saveProjectData());
+            }
         });
+
+        // Project type selection
+        document.querySelectorAll('input[name="project-type"]').forEach(radio => {
+            radio.addEventListener('change', (e) => this.handleProjectTypeChange(e.target.value));
+        });
+
+        // Existing project folder selection
+        document.getElementById('browse-existing-project-btn').addEventListener('click', () => this.openExistingProjectSelector());
 
         // Step 2: Folder Selection
         document.getElementById('browse-folder-btn').addEventListener('click', () => this.openFolderSelector());
@@ -127,7 +140,13 @@ class AgentOpsWorkflow {
     // Navigation Methods
     nextStep() {
         if (this.currentStep < this.maxSteps && this.validateCurrentStep()) {
-            this.currentStep++;
+            // Special handling for existing projects - skip step 2
+            if (this.projectType === 'existing' && this.currentStep === 1) {
+                this.currentStep = 3; // Skip to task identification
+                this.isExistingProject = true;
+            } else {
+                this.currentStep++;
+            }
             this.updateStepView();
             this.updateStepIndicators();
             this.handleStepEntry();
@@ -136,7 +155,12 @@ class AgentOpsWorkflow {
 
     previousStep() {
         if (this.currentStep > 1) {
-            this.currentStep--;
+            // Special handling for existing projects - skip step 2 when going back
+            if (this.isExistingProject && this.currentStep === 3) {
+                this.currentStep = 1; // Go back to specification
+            } else {
+                this.currentStep--;
+            }
             this.updateStepView();
             this.updateStepIndicators();
         }
@@ -166,17 +190,19 @@ class AgentOpsWorkflow {
     updateStepIndicators() {
         document.querySelectorAll('.step-indicator').forEach((indicator, index) => {
             const stepNum = index + 1;
+            const stepNumber = indicator.querySelector('.step-number');
+            
             indicator.classList.remove('completed', 'active', 'pending');
             
             if (stepNum < this.currentStep) {
                 indicator.classList.add('completed');
-                indicator.textContent = '✓';
+                stepNumber.textContent = '✓';
             } else if (stepNum === this.currentStep) {
                 indicator.classList.add('active');
-                indicator.textContent = stepNum;
+                stepNumber.textContent = stepNum;
             } else {
                 indicator.classList.add('pending');
-                indicator.textContent = stepNum;
+                stepNumber.textContent = stepNum;
             }
         });
     }
@@ -199,9 +225,14 @@ class AgentOpsWorkflow {
     }
 
     validateProjectSpecification() {
-        const name = document.getElementById('project-name').value.trim();
-        const specification = document.getElementById('claude-specification').value.trim();
-        return name.length > 0 && specification.length > 50;
+        if (this.projectType === 'existing') {
+            const existingPath = document.getElementById('existing-project-path').value.trim();
+            return existingPath.length > 0;
+        } else {
+            const name = document.getElementById('project-name').value.trim();
+            const specification = document.getElementById('claude-specification').value.trim();
+            return name.length > 0 && specification.length > 50;
+        }
     }
 
     validateFolderSelection() {
@@ -232,12 +263,119 @@ class AgentOpsWorkflow {
 
     // Step 1: Project Specification
     saveProjectData() {
-        this.projectData = {
-            name: document.getElementById('project-name').value,
-            claudeSpecification: document.getElementById('claude-specification').value,
-            additionalNotes: document.getElementById('additional-notes').value,
-            extractedDetails: this.extractedDetails || {}
-        };
+        if (this.projectType === 'existing') {
+            this.projectData = {
+                type: 'existing',
+                name: document.getElementById('existing-project-name').value || 'Detected Project Name',
+                path: document.getElementById('existing-project-path').value,
+                analysis: this.projectAnalysis || {}
+            };
+        } else {
+            this.projectData = {
+                type: 'new',
+                name: document.getElementById('project-name').value,
+                claudeSpecification: document.getElementById('claude-specification').value,
+                additionalNotes: document.getElementById('additional-notes').value,
+                extractedDetails: this.extractedDetails || {}
+            };
+        }
+    }
+
+    handleProjectTypeChange(type) {
+        this.projectType = type;
+        const newSection = document.getElementById('new-project-section');
+        const existingSection = document.getElementById('existing-project-section');
+        
+        if (type === 'existing') {
+            newSection.style.display = 'none';
+            existingSection.style.display = 'block';
+        } else {
+            newSection.style.display = 'block';
+            existingSection.style.display = 'none';
+        }
+        
+        this.saveProjectData();
+    }
+
+    openExistingProjectSelector() {
+        // Reuse the existing folder selector modal
+        document.getElementById('folder-select-modal').style.display = 'block';
+        this.isSelectingExistingProject = true;
+        this.loadFolderContents();
+    }
+
+    async analyzeExistingProject(projectPath) {
+        try {
+            const response = await fetch('/api/v1/filesystem/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectPath })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to analyze project: ${response.statusText}`);
+            }
+            
+            const analysis = await response.json();
+            this.projectAnalysis = analysis;
+            
+            this.displayProjectAnalysis(analysis);
+            
+        } catch (error) {
+            console.error('Error analyzing project:', error);
+            this.displayProjectAnalysis({
+                projectName: projectPath.split('/').pop(),
+                type: 'Unknown',
+                files: [],
+                technologies: [],
+                status: 'Analysis failed - proceeding with basic information'
+            });
+        }
+    }
+
+    displayProjectAnalysis(analysis) {
+        const analysisSection = document.getElementById('project-analysis');
+        const resultsDiv = document.getElementById('analysis-results');
+        
+        // Auto-fill project name if not set
+        const nameInput = document.getElementById('existing-project-name');
+        if (!nameInput.value && analysis.projectName) {
+            nameInput.value = analysis.projectName;
+        }
+        
+        resultsDiv.innerHTML = `
+            <div class="analysis-item">
+                <div class="analysis-item-icon">📦</div>
+                <div class="analysis-item-content">
+                    <div class="analysis-item-title">Project Type</div>
+                    <div class="analysis-item-description">${analysis.type || 'Unknown'}</div>
+                </div>
+            </div>
+            <div class="analysis-item">
+                <div class="analysis-item-icon">📁</div>
+                <div class="analysis-item-content">
+                    <div class="analysis-item-title">Files Found</div>
+                    <div class="analysis-item-description">${analysis.fileCount || 0} files detected</div>
+                </div>
+            </div>
+            <div class="analysis-item">
+                <div class="analysis-item-icon">⚙️</div>
+                <div class="analysis-item-content">
+                    <div class="analysis-item-title">Technologies</div>
+                    <div class="analysis-item-description">${(analysis.technologies || []).join(', ') || 'None detected'}</div>
+                </div>
+            </div>
+            <div class="analysis-item">
+                <div class="analysis-item-icon">📊</div>
+                <div class="analysis-item-content">
+                    <div class="analysis-item-title">Status</div>
+                    <div class="analysis-item-description">${analysis.status || 'Ready for task identification'}</div>
+                </div>
+            </div>
+        `;
+        
+        analysisSection.style.display = 'block';
+        this.saveProjectData();
     }
 
     // Step 2: Folder Selection
@@ -299,9 +437,17 @@ class AgentOpsWorkflow {
 
     selectCurrentFolder() {
         const currentPath = document.getElementById('current-path').textContent;
-        document.getElementById('project-path').value = currentPath;
-        this.closeFolderSelector();
-        this.scanProject();
+        
+        if (this.isSelectingExistingProject) {
+            document.getElementById('existing-project-path').value = currentPath;
+            this.isSelectingExistingProject = false;
+            this.closeFolderSelector();
+            this.analyzeExistingProject(currentPath);
+        } else {
+            document.getElementById('project-path').value = currentPath;
+            this.closeFolderSelector();
+            this.scanProject();
+        }
     }
 
     closeFolderSelector() {
@@ -853,6 +999,25 @@ function togglePreview() {
 function extractProjectDetails() {
     if (window.agentOps) {
         agentOps.extractProjectDetails();
+    }
+}
+
+function reanalyzeProject() {
+    if (window.agentOps) {
+        const projectPath = document.getElementById('existing-project-path').value;
+        if (projectPath) {
+            agentOps.analyzeExistingProject(projectPath);
+        }
+    }
+}
+
+function viewProjectFiles() {
+    if (window.agentOps) {
+        const projectPath = document.getElementById('existing-project-path').value;
+        if (projectPath) {
+            agentOps.openFolderSelector();
+            agentOps.loadFolderContents(projectPath);
+        }
     }
 }
 

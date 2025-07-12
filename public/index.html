@@ -12,11 +12,26 @@
             <h1>🤖 AgentOps</h1>
             <div class="header-controls">
                 <div class="workflow-progress">
-                    <div class="step-indicator" data-step="1">1</div>
-                    <div class="step-indicator" data-step="2">2</div>
-                    <div class="step-indicator" data-step="3">3</div>
-                    <div class="step-indicator" data-step="4">4</div>
-                    <div class="step-indicator" data-step="5">5</div>
+                    <div class="step-indicator" data-step="1">
+                        <span class="step-number">1</span>
+                        <span class="step-label">Specification</span>
+                    </div>
+                    <div class="step-indicator" data-step="2">
+                        <span class="step-number">2</span>
+                        <span class="step-label">Location</span>
+                    </div>
+                    <div class="step-indicator" data-step="3">
+                        <span class="step-number">3</span>
+                        <span class="step-label">Tasks</span>
+                    </div>
+                    <div class="step-indicator" data-step="4">
+                        <span class="step-number">4</span>
+                        <span class="step-label">Planning</span>
+                    </div>
+                    <div class="step-indicator" data-step="5">
+                        <span class="step-number">5</span>
+                        <span class="step-label">Execution</span>
+                    </div>
                 </div>
                 <div class="control-buttons">
                     <button id="prev-btn" class="btn btn-secondary" disabled>← Previous</button>
@@ -30,10 +45,38 @@
             <!-- Step 1: Project Specification -->
             <div id="step-1" class="workflow-step active">
                 <div class="step-content">
-                    <h2>📋 Project Specification with Claude</h2>
-                    <p class="step-description">Use Claude AI to create a comprehensive product specification, then attach the result here</p>
+                    <h2>📋 Project Specification</h2>
+                    <p class="step-description">Choose your project type and provide specifications to guide the AI agent workflow</p>
                     
-                    <div class="claude-guidance">
+                    <div class="project-type-selection">
+                        <h3>🎯 Project Type</h3>
+                        <div class="project-type-options">
+                            <label class="project-type-option">
+                                <input type="radio" name="project-type" value="new" checked />
+                                <div class="option-card">
+                                    <div class="option-icon">🆕</div>
+                                    <div class="option-content">
+                                        <h4>New Project</h4>
+                                        <p>Create a new project with Claude AI-generated specifications</p>
+                                    </div>
+                                </div>
+                            </label>
+                            <label class="project-type-option">
+                                <input type="radio" name="project-type" value="existing" />
+                                <div class="option-card">
+                                    <div class="option-icon">📁</div>
+                                    <div class="option-content">
+                                        <h4>Existing Project</h4>
+                                        <p>Continue work on an existing project by selecting its location</p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- New Project Section -->
+                    <div id="new-project-section" class="project-section">
+                        <div class="claude-guidance">
                         <div class="guidance-card">
                             <h3>🎯 Step-by-Step Guide</h3>
                             <ol class="guidance-steps">
@@ -113,9 +156,42 @@ Your project description...
                         <button class="btn btn-outline btn-small" onclick="togglePreview()">Hide Preview</button>
                     </div>
                     
-                    <div class="action-buttons">
-                        <button class="btn btn-outline" onclick="togglePreview()">👁️ Preview Specification</button>
-                        <button class="btn btn-outline" onclick="extractProjectDetails()">🔍 Extract Project Details</button>
+                        <div class="action-buttons">
+                            <button class="btn btn-outline" onclick="togglePreview()">👁️ Preview Specification</button>
+                            <button class="btn btn-outline" onclick="extractProjectDetails()">🔍 Extract Project Details</button>
+                        </div>
+                    </div>
+
+                    <!-- Existing Project Section -->
+                    <div id="existing-project-section" class="project-section" style="display: none;">
+                        <h3>📁 Select Existing Project</h3>
+                        <p class="section-description">Choose the location of your existing project to continue development</p>
+                        
+                        <div class="form-group">
+                            <label for="existing-project-path">Project Directory</label>
+                            <div class="file-input-group">
+                                <input type="text" id="existing-project-path" placeholder="Select existing project folder..." readonly />
+                                <button id="browse-existing-project-btn" class="btn btn-outline">Browse</button>
+                            </div>
+                            <small class="form-help">Select the root directory of your existing project</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="existing-project-name">Project Name (Optional)</label>
+                            <input type="text" id="existing-project-name" placeholder="Enter project name or leave blank to auto-detect..." />
+                            <small class="form-help">We'll try to auto-detect the project name from package.json, README, or directory name</small>
+                        </div>
+
+                        <div id="project-analysis" class="analysis-section" style="display: none;">
+                            <h4>📊 Project Analysis</h4>
+                            <div id="analysis-results" class="analysis-results">
+                                <!-- Analysis results will be populated here -->
+                            </div>
+                            <div class="analysis-actions">
+                                <button class="btn btn-outline btn-small" onclick="reanalyzeProject()">🔄 Re-analyze</button>
+                                <button class="btn btn-outline btn-small" onclick="viewProjectFiles()">📁 View Files</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
