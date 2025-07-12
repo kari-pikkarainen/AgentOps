@@ -272,7 +272,7 @@ npm test       # Run tests (future)
 
 ## 📄 License & Ownership
 
-**Copyright © 2024 Kari Pikkarainen. All rights reserved.**
+**Copyright © 2025 Kari Pikkarainen. All rights reserved.**
 
 This software is proprietary and confidential. Unauthorized copying, distribution, modification, public performance, or public display of this software is strictly prohibited. No part of this software may be reproduced, distributed, or transmitted in any form or by any means, including photocopying, recording, or other electronic or mechanical methods, without the prior written permission of Kari Pikkarainen.
 

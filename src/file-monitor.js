@@ -2,7 +2,7 @@
  * Claude Code AI Agent Visual Monitoring System
  * File System Monitor Module
  * 
- * Copyright © 2024 Kari Pikkarainen. All rights reserved.
+ * Copyright © 2025 Kari Pikkarainen. All rights reserved.
  * This software is proprietary and confidential.
  */
 
