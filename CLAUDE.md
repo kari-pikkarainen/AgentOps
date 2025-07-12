@@ -47,6 +47,8 @@ The system uses structured data models for:
 - **Modern Responsive UI**: Professional interface with animations, modals, and form interactions
 - **WebSocket Frontend Integration**: Real-time communication between frontend and backend
 - **Advanced File System API**: Backend endpoint for secure directory browsing and navigation
+- **Claude Code Settings Integration**: Comprehensive settings modal with auto-detection, status monitoring, and connection testing
+- **Enhanced UX**: Improved header layout, copy button positioning, and right-side modal animations
 
 ### Phase 4 (Advanced Features) - NEXT
 - Enhanced Claude Code workflow integration and automation
@@ -115,8 +117,13 @@ The system integrates with Claude Code instances through:
 
 The system exposes REST APIs for:
 - `/api/v1/claude-code/instances` - Claude Code instance management (✅ Implemented)
+- `/api/v1/claude-code/status` - Claude Code availability and status checking (✅ Implemented)
+- `/api/v1/claude-code/detect` - Auto-detection of Claude Code installation (✅ Implemented)
+- `/api/v1/claude-code/test` - Connection testing and validation (✅ Implemented)
 - `/api/v1/monitoring` - File system monitoring control (✅ Implemented)
 - `/api/v1/activities` - Activity monitoring with search/filter (✅ Implemented)
+- `/api/v1/filesystem/browse` - File system browsing and navigation (✅ Implemented)
+- `/api/v1/filesystem/analyze` - Project analysis and detection (✅ Implemented)
 - `/api/v1/workflows` - Workflow management (Future)
 - `/api/v1/testing` - Test execution and coverage reporting (Future)
 - `/api/v1/config` - System configuration (Future)

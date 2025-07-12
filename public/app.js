@@ -16,6 +16,7 @@ class AgentOpsWorkflow {
         this.activities = [];
         this.projectType = 'new';
         this.isExistingProject = false;
+        this.settings = this.loadSettings();
         
         this.init();
     }
@@ -49,6 +50,9 @@ class AgentOpsWorkflow {
         // Existing project folder selection
         document.getElementById('browse-existing-project-btn').addEventListener('click', () => this.openExistingProjectSelector());
 
+        // Settings
+        document.getElementById('settings-btn').addEventListener('click', () => this.openSettings());
+
         // Step 2: Folder Selection
         document.getElementById('browse-folder-btn').addEventListener('click', () => this.openFolderSelector());
         document.getElementById('project-path').addEventListener('change', () => this.scanProject());
@@ -64,6 +68,7 @@ class AgentOpsWorkflow {
 
         // Modal controls
         this.setupModalControls();
+        this.setupSettingsControls();
 
         // Activity filters
         document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -83,9 +88,34 @@ class AgentOpsWorkflow {
         // Modal close buttons
         document.querySelectorAll('.modal-close').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                e.target.closest('.modal').style.display = 'none';
+                const modal = e.target.closest('.modal');
+                if (modal.id === 'settings-modal') {
+                    this.closeSettings();
+                } else {
+                    modal.style.display = 'none';
+                }
             });
         });
+    }
+
+    setupSettingsControls() {
+        // Settings modal event listeners
+        document.getElementById('save-settings-btn').addEventListener('click', () => this.applySettings());
+        document.getElementById('cancel-settings-btn').addEventListener('click', () => this.closeSettings());
+        document.getElementById('reset-settings-btn').addEventListener('click', () => this.resetSettings());
+
+        // Claude Code specific controls
+        document.getElementById('detect-claude-btn').addEventListener('click', () => this.autoDetectClaude());
+        document.getElementById('test-claude-connection').addEventListener('click', () => this.testClaudeConnection());
+    }
+
+    closeSettings() {
+        const modal = document.getElementById('settings-modal');
+        modal.classList.remove('show');
+        // Wait for animation to complete before hiding
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
     }
 
     setupWebSocket() {
@@ -866,6 +896,222 @@ class AgentOpsWorkflow {
 
     handleProcessOutput(data) {
         console.log('Process output:', data);
+    }
+
+    // Settings Management
+    loadSettings() {
+        const defaultSettings = {
+            aiAgent: {
+                provider: 'claude-code',
+                claudeCodePath: '',
+                claudeCodeArgs: '--model sonnet --max-tokens 8000',
+                maxConcurrentInstances: 3,
+                autoRestartFailed: true
+            },
+            general: {
+                activityHistoryLimit: 1000,
+                autoSaveWorkflows: true,
+                showDebugInfo: false
+            }
+        };
+
+        try {
+            const saved = localStorage.getItem('agentops-settings');
+            return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            return defaultSettings;
+        }
+    }
+
+    saveSettings() {
+        try {
+            localStorage.setItem('agentops-settings', JSON.stringify(this.settings));
+        } catch (error) {
+            console.error('Error saving settings:', error);
+        }
+    }
+
+    openSettings() {
+        this.populateSettingsForm();
+        const modal = document.getElementById('settings-modal');
+        modal.style.display = 'flex';
+        // Small delay to ensure display is set before adding show class
+        setTimeout(() => {
+            modal.classList.add('show');
+        }, 10);
+        this.checkClaudeCodeAvailability();
+    }
+
+    populateSettingsForm() {
+        // AI Agent settings
+        document.getElementById('ai-agent-provider').value = this.settings.aiAgent.provider;
+        document.getElementById('claude-code-path').value = this.settings.aiAgent.claudeCodePath;
+        document.getElementById('claude-code-args').value = this.settings.aiAgent.claudeCodeArgs;
+        document.getElementById('max-concurrent-instances').value = this.settings.aiAgent.maxConcurrentInstances;
+        document.getElementById('auto-restart-failed').checked = this.settings.aiAgent.autoRestartFailed;
+
+        // General settings
+        document.getElementById('activity-history-limit').value = this.settings.general.activityHistoryLimit;
+        document.getElementById('auto-save-workflows').checked = this.settings.general.autoSaveWorkflows;
+        document.getElementById('show-debug-info').checked = this.settings.general.showDebugInfo;
+    }
+
+    async checkClaudeCodeAvailability() {
+        const availabilitySpan = document.getElementById('claude-availability');
+        const versionSpan = document.getElementById('claude-version');
+        const instancesSpan = document.getElementById('claude-active-instances');
+
+        availabilitySpan.textContent = 'Checking...';
+        availabilitySpan.className = 'status-value status-info';
+
+        try {
+            const response = await fetch('/api/v1/claude-code/status');
+            
+            if (response.ok) {
+                const status = await response.json();
+                
+                availabilitySpan.textContent = status.available ? 'Available' : 'Not Available';
+                availabilitySpan.className = `status-value ${status.available ? 'status-success' : 'status-error'}`;
+                
+                versionSpan.textContent = status.version || 'Unknown';
+                instancesSpan.textContent = status.activeInstances || '0';
+                
+                // Auto-fill path if detected and not already set
+                if (status.detectedPath && !this.settings.aiAgent.claudeCodePath) {
+                    document.getElementById('claude-code-path').value = status.detectedPath;
+                }
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Error checking Claude Code availability:', error);
+            availabilitySpan.textContent = 'Error checking';
+            availabilitySpan.className = 'status-value status-error';
+            versionSpan.textContent = 'Unknown';
+            instancesSpan.textContent = '0';
+        }
+    }
+
+    async testClaudeConnection() {
+        const testBtn = document.getElementById('test-claude-connection');
+        const originalText = testBtn.textContent;
+        
+        testBtn.textContent = '🔄 Testing...';
+        testBtn.disabled = true;
+
+        try {
+            const response = await fetch('/api/v1/claude-code/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    path: document.getElementById('claude-code-path').value,
+                    args: document.getElementById('claude-code-args').value.split(' ').filter(arg => arg.trim())
+                })
+            });
+
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                testBtn.textContent = '✅ Connection OK';
+                testBtn.style.backgroundColor = '#2ecc71';
+                setTimeout(() => {
+                    testBtn.textContent = originalText;
+                    testBtn.style.backgroundColor = '';
+                    testBtn.disabled = false;
+                }, 3000);
+            } else {
+                throw new Error(result.error || 'Connection test failed');
+            }
+        } catch (error) {
+            console.error('Claude Code connection test failed:', error);
+            testBtn.textContent = '❌ Test Failed';
+            testBtn.style.backgroundColor = '#e74c3c';
+            
+            setTimeout(() => {
+                testBtn.textContent = originalText;
+                testBtn.style.backgroundColor = '';
+                testBtn.disabled = false;
+            }, 3000);
+            
+            alert(`Connection test failed: ${error.message}`);
+        }
+    }
+
+    async autoDetectClaude() {
+        const detectBtn = document.getElementById('detect-claude-btn');
+        const pathInput = document.getElementById('claude-code-path');
+        const originalText = detectBtn.textContent;
+        
+        detectBtn.textContent = '🔍 Detecting...';
+        detectBtn.disabled = true;
+
+        try {
+            const response = await fetch('/api/v1/claude-code/detect');
+            const result = await response.json();
+            
+            if (response.ok && result.path) {
+                pathInput.value = result.path;
+                detectBtn.textContent = '✅ Found';
+                detectBtn.style.backgroundColor = '#2ecc71';
+                
+                setTimeout(() => {
+                    detectBtn.textContent = originalText;
+                    detectBtn.style.backgroundColor = '';
+                    detectBtn.disabled = false;
+                }, 2000);
+            } else {
+                throw new Error(result.error || 'Claude Code not found');
+            }
+        } catch (error) {
+            console.error('Auto-detection failed:', error);
+            detectBtn.textContent = '❌ Not Found';
+            detectBtn.style.backgroundColor = '#e74c3c';
+            
+            setTimeout(() => {
+                detectBtn.textContent = originalText;
+                detectBtn.style.backgroundColor = '';
+                detectBtn.disabled = false;
+            }, 3000);
+            
+            alert(`Auto-detection failed: ${error.message}`);
+        }
+    }
+
+    applySettings() {
+        // Collect settings from form
+        this.settings = {
+            aiAgent: {
+                provider: document.getElementById('ai-agent-provider').value,
+                claudeCodePath: document.getElementById('claude-code-path').value,
+                claudeCodeArgs: document.getElementById('claude-code-args').value,
+                maxConcurrentInstances: parseInt(document.getElementById('max-concurrent-instances').value),
+                autoRestartFailed: document.getElementById('auto-restart-failed').checked
+            },
+            general: {
+                activityHistoryLimit: parseInt(document.getElementById('activity-history-limit').value),
+                autoSaveWorkflows: document.getElementById('auto-save-workflows').checked,
+                showDebugInfo: document.getElementById('show-debug-info').checked
+            }
+        };
+
+        this.saveSettings();
+        this.closeSettings();
+        
+        // Update activity history limit
+        if (this.activities.length > this.settings.general.activityHistoryLimit) {
+            this.activities = this.activities.slice(0, this.settings.general.activityHistoryLimit);
+        }
+        
+        console.log('Settings applied:', this.settings);
+    }
+
+    resetSettings() {
+        if (confirm('Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
+            localStorage.removeItem('agentops-settings');
+            this.settings = this.loadSettings();
+            this.populateSettingsForm();
+        }
     }
 
     // Step 1: Claude Integration Functions

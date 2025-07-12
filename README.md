@@ -133,6 +133,19 @@ POST /api/v1/claude-code/instances/:id/input
 {
   "input": "help\n"
 }
+
+# Get Claude Code status and availability
+GET /api/v1/claude-code/status
+
+# Auto-detect Claude Code installation
+GET /api/v1/claude-code/detect
+
+# Test Claude Code connection
+POST /api/v1/claude-code/test
+{
+  "path": "/opt/homebrew/bin/claude",
+  "args": ["--model", "sonnet", "--max-tokens", "8000"]
+}
 ```
 
 #### File Monitoring
@@ -285,6 +298,8 @@ npm run test:coverage # Run tests with coverage report
 - [x] **Live Execution Monitoring** - Real-time progress tracking and instance management
 - [x] **Modern Responsive UI** - Professional interface with animations and interactions
 - [x] **WebSocket Frontend Integration** - Real-time communication with backend services
+- [x] **Claude Code Settings Integration** - Auto-detection, configuration, and status monitoring
+- [x] **Enhanced Header Layout** - Improved UX with centered workflow and right-aligned settings
 
 ### Phase 4: Advanced Features (Next)
 - [ ] Enhanced task generation with Claude Code integration

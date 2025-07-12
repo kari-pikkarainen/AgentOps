@@ -10,7 +10,7 @@
     <div class="app">
         <header class="header">
             <h1>🤖 AgentOps</h1>
-            <div class="header-controls">
+            <div class="header-center">
                 <div class="workflow-progress">
                     <div class="step-indicator" data-step="1">
                         <span class="step-number">1</span>
@@ -38,6 +38,9 @@
                     <button id="next-btn" class="btn btn-primary">Next →</button>
                     <button id="start-execution-btn" class="btn btn-success" style="display: none;">🚀 Start Execution</button>
                 </div>
+            </div>
+            <div class="header-right">
+                <button id="settings-btn" class="btn btn-outline btn-small" title="Settings">⚙️</button>
             </div>
         </header>
 
@@ -99,8 +102,8 @@
 8. Risk Assessment & Mitigation
 
 Please ask me questions about my project idea first, then create a detailed specification in markdown format.</pre>
-                                        <button class="copy-btn" onclick="copyPrompt()">📋 Copy Prompt</button>
                                     </div>
+                                    <button class="copy-btn" onclick="copyPrompt()">📋 Copy Prompt</button>
                                 </li>
                                 <li>
                                     <strong>Answer Claude's questions</strong> about your project idea to refine the specification
@@ -389,6 +392,112 @@ Your project description...
                 <div class="modal-footer">
                     <button id="cancel-folder-select-btn" class="btn btn-secondary">Cancel</button>
                     <button id="select-folder-btn" class="btn btn-primary">Select This Folder</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>⚙️ AgentOps Settings</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="settings-section">
+                        <h4>🤖 AI Agent Configuration</h4>
+                        
+                        <div class="form-group">
+                            <label for="ai-agent-provider">AI Agent Provider</label>
+                            <select id="ai-agent-provider">
+                                <option value="claude-code" selected>Claude Code</option>
+                                <option value="coming-soon" disabled>OpenAI Agents (Coming Soon)</option>
+                                <option value="coming-soon-2" disabled>Custom Agents (Coming Soon)</option>
+                            </select>
+                            <small class="form-help">Select the AI agent system to use for task execution</small>
+                        </div>
+
+                        <div id="claude-code-settings" class="agent-settings">
+                            <div class="form-group">
+                                <label for="claude-code-path">Claude Code Executable Path</label>
+                                <div class="file-input-group">
+                                    <input type="text" id="claude-code-path" placeholder="Auto-detect or specify path..." />
+                                    <button id="detect-claude-btn" class="btn btn-outline btn-small">Auto-detect</button>
+                                </div>
+                                <small class="form-help">Path to the Claude Code CLI executable (leave blank for auto-detection)</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="claude-code-args">Default Arguments</label>
+                                <input type="text" id="claude-code-args" placeholder="--model sonnet --max-tokens 8000" />
+                                <small class="form-help">Default command line arguments for Claude Code instances</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="max-concurrent-instances">Max Concurrent Instances</label>
+                                <input type="number" id="max-concurrent-instances" value="3" min="1" max="10" />
+                                <small class="form-help">Maximum number of Claude Code instances to run simultaneously</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="auto-restart-failed" checked />
+                                    Auto-restart failed instances
+                                </label>
+                                <small class="form-help">Automatically restart Claude Code instances that crash or fail</small>
+                            </div>
+                        </div>
+
+                        <div class="claude-status">
+                            <h5>🔍 Claude Code Status</h5>
+                            <div id="claude-status-display" class="status-display">
+                                <div class="status-item">
+                                    <span class="status-label">Availability:</span>
+                                    <span id="claude-availability" class="status-value">Checking...</span>
+                                </div>
+                                <div class="status-item">
+                                    <span class="status-label">Version:</span>
+                                    <span id="claude-version" class="status-value">Unknown</span>
+                                </div>
+                                <div class="status-item">
+                                    <span class="status-label">Active Instances:</span>
+                                    <span id="claude-active-instances" class="status-value">0</span>
+                                </div>
+                            </div>
+                            <button id="test-claude-connection" class="btn btn-outline btn-small">🧪 Test Connection</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h4>🔧 General Settings</h4>
+                        
+                        <div class="form-group">
+                            <label for="activity-history-limit">Activity History Limit</label>
+                            <input type="number" id="activity-history-limit" value="1000" min="100" max="10000" step="100" />
+                            <small class="form-help">Maximum number of activities to keep in memory</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="auto-save-workflows" checked />
+                                Auto-save workflow progress
+                            </label>
+                            <small class="form-help">Automatically save workflow state between sessions</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="show-debug-info" />
+                                Show debug information
+                            </label>
+                            <small class="form-help">Display additional debug information in the interface</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="reset-settings-btn" class="btn btn-secondary">Reset to Defaults</button>
+                    <button id="cancel-settings-btn" class="btn btn-secondary">Cancel</button>
+                    <button id="save-settings-btn" class="btn btn-primary">Save Settings</button>
                 </div>
             </div>
         </div>

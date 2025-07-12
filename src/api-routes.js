@@ -11,6 +11,7 @@ const fileMonitor = require('./file-monitor');
 const activityParser = require('./activity-parser');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 
 /**
  * Configure all API routes for the Express app
@@ -25,6 +26,11 @@ function configureApiRoutes(app) {
     app.post('/api/v1/claude-code/instances', createInstance);
     app.delete('/api/v1/claude-code/instances/:id', terminateInstance);
     app.post('/api/v1/claude-code/instances/:id/input', sendInstanceInput);
+
+    // Claude Code status and detection routes
+    app.get('/api/v1/claude-code/status', getClaudeCodeStatus);
+    app.get('/api/v1/claude-code/detect', detectClaudeCode);
+    app.post('/api/v1/claude-code/test', testClaudeCodeConnection);
 
     // File monitoring routes
     app.get('/api/v1/monitoring/status', getMonitoringStatus);
@@ -390,6 +396,178 @@ function countFiles(dirPath, maxDepth = 3, currentDepth = 0) {
     }
 }
 
+// Claude Code Status and Detection Handlers
+function getClaudeCodeStatus(req, res) {
+    try {
+        const instances = processManager.getAllInstances();
+        const claudeInstances = instances.filter(inst => 
+            inst.command && inst.command.includes('claude')
+        );
+
+        // Try to detect Claude Code if not already detected
+        const detectedPath = findClaudeCodeExecutable();
+        
+        res.json({
+            available: detectedPath !== null,
+            detectedPath: detectedPath,
+            version: 'Unknown', // Will be determined by test connection
+            activeInstances: claudeInstances.length,
+            instances: claudeInstances.map(inst => ({
+                id: inst.id,
+                status: inst.status,
+                pid: inst.process ? inst.process.pid : null
+            }))
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            error: 'Failed to get Claude Code status', 
+            details: error.message,
+            available: false,
+            activeInstances: 0
+        });
+    }
+}
+
+function detectClaudeCode(req, res) {
+    try {
+        const claudePath = findClaudeCodeExecutable();
+        
+        if (claudePath) {
+            res.json({
+                success: true,
+                path: claudePath,
+                message: 'Claude Code executable found'
+            });
+        } else {
+            res.json({
+                success: false,
+                path: null,
+                error: 'Claude Code executable not found in common locations'
+            });
+        }
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            path: null,
+            error: 'Detection failed',
+            details: error.message
+        });
+    }
+}
+
+function testClaudeCodeConnection(req, res) {
+    try {
+        const { path: claudePath, args = [] } = req.body;
+        const executablePath = claudePath || findClaudeCodeExecutable();
+        
+        if (!executablePath) {
+            return res.status(400).json({
+                success: false,
+                error: 'No Claude Code executable path provided or detected'
+            });
+        }
+
+        // Test Claude Code with --version or --help flag
+        const testProcess = spawn(executablePath, ['--version'], {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            timeout: 5000
+        });
+
+        let output = '';
+        let errorOutput = '';
+
+        testProcess.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        testProcess.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+        });
+
+        testProcess.on('close', (code) => {
+            if (code === 0 || output.includes('claude') || output.includes('version')) {
+                res.json({
+                    success: true,
+                    version: output.trim() || 'Available',
+                    message: 'Claude Code connection successful',
+                    output: output.trim()
+                });
+            } else {
+                res.json({
+                    success: false,
+                    error: `Process exited with code ${code}`,
+                    stderr: errorOutput.trim(),
+                    stdout: output.trim()
+                });
+            }
+        });
+
+        testProcess.on('error', (error) => {
+            res.json({
+                success: false,
+                error: 'Failed to execute Claude Code',
+                details: error.message
+            });
+        });
+
+        // Timeout handling
+        setTimeout(() => {
+            if (!testProcess.killed) {
+                testProcess.kill();
+                res.json({
+                    success: false,
+                    error: 'Connection test timed out after 5 seconds'
+                });
+            }
+        }, 5000);
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: 'Connection test failed',
+            details: error.message
+        });
+    }
+}
+
+// Helper function to find Claude Code executable in common locations
+function findClaudeCodeExecutable() {
+    const commonPaths = [
+        '/usr/local/bin/claude',
+        '/usr/bin/claude',
+        '/opt/homebrew/bin/claude',
+        process.env.HOME + '/.local/bin/claude',
+        process.env.HOME + '/bin/claude'
+    ];
+
+    // Also check if 'claude' is in PATH
+    try {
+        const { execSync } = require('child_process');
+        const whichResult = execSync('which claude', { encoding: 'utf8', stdio: 'pipe' });
+        if (whichResult && whichResult.trim()) {
+            return whichResult.trim();
+        }
+    } catch (e) {
+        // 'which' command failed, continue with manual search
+    }
+
+    // Check common installation paths
+    for (const claudePath of commonPaths) {
+        try {
+            if (fs.existsSync(claudePath)) {
+                const stats = fs.statSync(claudePath);
+                if (stats.isFile() && (stats.mode & parseInt('111', 8))) {
+                    return claudePath;
+                }
+            }
+        } catch (e) {
+            continue;
+        }
+    }
+
+    return null;
+}
+
 module.exports = {
     configureApiRoutes,
     // Export individual handlers for testing
@@ -397,6 +575,9 @@ module.exports = {
     createInstance,
     terminateInstance,
     sendInstanceInput,
+    getClaudeCodeStatus,
+    detectClaudeCode,
+    testClaudeCodeConnection,
     getMonitoringStatus,
     startMonitoring,
     stopMonitoring,
