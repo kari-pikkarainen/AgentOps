@@ -245,6 +245,43 @@ describe('WebSocket Handler', () => {
             }));
         });
 
+        test('should handle monitoring without project path', () => {
+            // Clear previous calls
+            mockWs.send.mockClear();
+            
+            wsHandler.routeMessage(mockWs, {
+                type: 'startMonitoring',
+                options: { ignored: ['*.log'] }
+            });
+
+            expect(fileMonitor.startMonitoring).toHaveBeenCalledWith(process.cwd(), { ignored: ['*.log'] });
+            expect(mockWs.send).toHaveBeenCalledWith(JSON.stringify({
+                type: 'response',
+                data: {
+                    message: 'File monitoring started',
+                    path: process.cwd()
+                }
+            }));
+        });
+
+        test('should handle monitoring errors', () => {
+            // Clear previous calls and setup error
+            mockWs.send.mockClear();
+            fileMonitor.startMonitoring.mockImplementation(() => {
+                throw new Error('Monitoring failed');
+            });
+            
+            wsHandler.routeMessage(mockWs, {
+                type: 'startMonitoring',
+                projectPath: '/test/path'
+            });
+
+            expect(mockWs.send).toHaveBeenCalledWith(JSON.stringify({
+                type: 'error',
+                data: 'Monitoring failed'
+            }));
+        });
+
         test('should route activity messages', () => {
             const mockActivities = [{ id: 1, type: 'test' }];
             activityParser.getRecentActivities.mockReturnValue(mockActivities);

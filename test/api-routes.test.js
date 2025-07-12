@@ -88,6 +88,19 @@ describe('API Routes', () => {
                 expect(processManager.spawnInstance).toHaveBeenCalledWith('echo test', {});
             });
 
+            test('should create instance without options', async () => {
+                const mockInstance = { id: 'test-2', command: 'echo test' };
+                processManager.spawnInstance.mockReturnValue(mockInstance);
+
+                const response = await request(app)
+                    .post('/api/v1/claude-code/instances')
+                    .send({ command: 'echo test' })
+                    .expect(200);
+
+                expect(response.body).toEqual(mockInstance);
+                expect(processManager.spawnInstance).toHaveBeenCalledWith('echo test', undefined);
+            });
+
             test('should require command', async () => {
                 const response = await request(app)
                     .post('/api/v1/claude-code/instances')
@@ -232,6 +245,15 @@ describe('API Routes', () => {
                 expect(fileMonitor.startMonitoring).toHaveBeenCalledWith(process.cwd(), undefined);
             });
 
+            test('should handle missing project path and options', async () => {
+                const response = await request(app)
+                    .post('/api/v1/monitoring/start')
+                    .send({ options: { ignored: ['*.log'] } })
+                    .expect(200);
+
+                expect(fileMonitor.startMonitoring).toHaveBeenCalledWith(process.cwd(), { ignored: ['*.log'] });
+            });
+
             test('should handle monitoring errors', async () => {
                 fileMonitor.startMonitoring.mockImplementation(() => {
                     throw new Error('Already monitoring');
@@ -308,6 +330,30 @@ describe('API Routes', () => {
                 expect(activityParser.getRecentActivities).toHaveBeenCalledWith(10, 'error');
             });
 
+            test('should handle invalid limit parameter', async () => {
+                const mockActivities = [{ id: 1, type: 'test' }];
+                activityParser.getRecentActivities.mockReturnValue(mockActivities);
+
+                const response = await request(app)
+                    .get('/api/v1/activities?limit=invalid')
+                    .expect(200);
+
+                expect(response.body).toEqual(mockActivities);
+                expect(activityParser.getRecentActivities).toHaveBeenCalledWith(NaN, null);
+            });
+
+            test('should handle only type parameter', async () => {
+                const mockActivities = [{ id: 1, type: 'info' }];
+                activityParser.getRecentActivities.mockReturnValue(mockActivities);
+
+                const response = await request(app)
+                    .get('/api/v1/activities?type=info')
+                    .expect(200);
+
+                expect(response.body).toEqual(mockActivities);
+                expect(activityParser.getRecentActivities).toHaveBeenCalledWith(50, 'info');
+            });
+
             test('should handle errors gracefully', async () => {
                 activityParser.getRecentActivities.mockImplementation(() => {
                     throw new Error('Database error');
@@ -333,6 +379,19 @@ describe('API Routes', () => {
 
                 expect(response.body).toEqual(mockResults);
                 expect(activityParser.searchActivities).toHaveBeenCalledWith('error', { type: 'error' });
+            });
+
+            test('should search without filters', async () => {
+                const mockResults = [{ id: 1, description: 'test' }];
+                activityParser.searchActivities.mockReturnValue(mockResults);
+
+                const response = await request(app)
+                    .post('/api/v1/activities/search')
+                    .send({ query: 'test' })
+                    .expect(200);
+
+                expect(response.body).toEqual(mockResults);
+                expect(activityParser.searchActivities).toHaveBeenCalledWith('test', undefined);
             });
 
             test('should handle search errors', async () => {

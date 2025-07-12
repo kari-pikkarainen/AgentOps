@@ -48,6 +48,27 @@ describe('Activity Parser', () => {
             expect(testActivity.type).toBe('test_pass');
         });
 
+        test('should parse Claude function calls with function name', () => {
+            const activity = activityParser.parseActivity('test', '<function_calls><invoke name="readFile">test</invoke></function_calls>');
+            expect(activity.type).toBe('claude_function_call');
+            expect(activity.parsedContent.summary).toBe('Called function: readFile');
+            expect(activity.parsedContent.details.functionName).toBe('readFile');
+            expect(activity.parsedContent.tags).toContain('function-call');
+            expect(activity.parsedContent.tags).toContain('readFile');
+        });
+
+        test('should parse Claude function calls without function name', () => {
+            const activity = activityParser.parseActivity('test', '<function_calls>invalid format</function_calls>');
+            expect(activity.type).toBe('claude_function_result');
+            expect(activity.parsedContent.summary).toContain('invalid format');
+        });
+
+        test('should parse git commands without match', () => {
+            const activity = activityParser.parseActivity('test', 'some non-git text');
+            expect(activity.type).toBe('general');
+            expect(activity.parsedContent.summary).toBe('some non-git text');
+        });
+
         test('should calculate importance scores', () => {
             const errorActivity = activityParser.parseActivity('test', 'Error: Critical failure');
             expect(errorActivity.importance).toBeGreaterThanOrEqual(9);
