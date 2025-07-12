@@ -1,6 +1,6 @@
-# Claude Code AI Agent Visual Monitoring System
+# AgentOps
 
-A comprehensive visual interface for tracking and managing Claude Code AI Agent operations in real-time. Monitor workflows, visualize progress, and gain detailed insights into AI agent activities.
+AgentOps is an AI agent monitoring, control, and workflow visualization platform that brings DevOps principles to AI agent development. It provides real-time oversight and management of AI agents like Claude Code throughout the entire development lifecycle.
 
 ![Project Status](https://img.shields.io/badge/Status-Phase%202%20Complete-brightgreen)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen)
@@ -282,7 +282,7 @@ This software is proprietary and confidential. Unauthorized copying, distributio
 
 ## 🙏 Acknowledgments
 
-- Built for the Claude Code AI Agent ecosystem
+- AgentOps is built for the Claude Code AI Agent ecosystem
 - Inspired by modern DevOps monitoring tools
 - Designed for developer productivity and insights
 
@@ -294,4 +294,4 @@ This software is proprietary and confidential. Unauthorized copying, distributio
 
 ---
 
-**Phase 2 Complete**: Real Claude Code integration with process management, file monitoring, activity parsing, and comprehensive WebSocket/REST API support. Ready for Phase 3 advanced features development.
+**Phase 2 Complete**: AgentOps now provides real Claude Code integration with process management, file monitoring, activity parsing, and comprehensive WebSocket/REST API support. Ready for Phase 3 advanced features development.

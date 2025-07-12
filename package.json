@@ -1,7 +1,7 @@
 {
-  "name": "claude-code-monitoring",
+  "name": "agentops",
   "version": "0.1.0",
-  "description": "Visual monitoring system for Claude Code AI Agent operations",
+  "description": "AgentOps is an AI agent monitoring, control, and workflow visualization platform that brings DevOps principles to AI agent development. It provides real-time oversight and management of AI agents like Claude Code throughout the entire development lifecycle.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -1,5 +1,5 @@
 /**
- * Claude Code AI Agent Visual Monitoring System
+ * AgentOps
  * File System Monitor Module
  * 
  * Copyright © 2025 Kari Pikkarainen. All rights reserved.

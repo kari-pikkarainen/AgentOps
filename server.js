@@ -1,5 +1,5 @@
 /**
- * Claude Code AI Agent Visual Monitoring System
+ * AgentOps
  * Main Server Application
  * 
  * Copyright © 2025 Kari Pikkarainen. All rights reserved.
@@ -354,7 +354,7 @@ wss.on('connection', (ws) => {
     ws.send(JSON.stringify({
         type: 'welcome',
         data: {
-            message: 'Connected to Claude Code Monitor',
+            message: 'Connected to AgentOps',
             currentInstances: processManager.getAllInstances(),
             monitoringStatus: fileMonitor.getStatus(),
             activityStatistics: activityParser.getStatistics()
@@ -364,6 +364,6 @@ wss.on('connection', (ws) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Claude Code Monitor running on http://localhost:${PORT}`);
+    console.log(`AgentOps running on http://localhost:${PORT}`);
     console.log('Press Ctrl+C to stop the server');
 });

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Claude Code AI Agent Visual Monitoring System** project that creates a comprehensive visual interface for tracking and managing Claude Code AI Agent operations in real-time. The system is designed to monitor workflows, visualize progress, and provide detailed insights into AI agent activities.
+This is **AgentOps**, an AI agent monitoring, control, and workflow visualization platform that brings DevOps principles to AI agent development. It provides real-time oversight and management of AI agents like Claude Code throughout the entire development lifecycle.
 
 ## Architecture
 
