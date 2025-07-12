@@ -7,12 +7,27 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="/logo.svg">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="app">
         <header class="header">
-            <h1>🤖 AgentOps</h1>
+            <div class="logo-container">
+                <svg class="logo" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Abstract interconnected nodes representing AI agent workflow -->
+                    <circle cx="6" cy="6" r="2.5" fill="#5e6ad2" opacity="0.9"/>
+                    <circle cx="18" cy="6" r="2.5" fill="#10b981" opacity="0.9"/>
+                    <circle cx="12" cy="18" r="2.5" fill="#f59e0b" opacity="0.9"/>
+                    <circle cx="12" cy="12" r="1.5" fill="#1f2937" opacity="0.7"/>
+                    
+                    <!-- Connecting lines representing workflow connections -->
+                    <path d="M8.2 7.2L9.8 10.8" stroke="#5e6ad2" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+                    <path d="M15.8 7.2L14.2 10.8" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+                    <path d="M12 13.5L12 15.5" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+                </svg>
+                <span class="logo-text">AgentOps</span>
+            </div>
             <div class="header-center">
                 <div class="workflow-progress">
                     <div class="step-indicator" data-step="1">

@@ -38,7 +38,22 @@ body {
     border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.header h1 {
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo {
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.logo:hover {
+    transform: scale(1.05);
+}
+
+.logo-text {
     font-size: 18px;
     font-weight: 600;
     color: #1d1d1f;
