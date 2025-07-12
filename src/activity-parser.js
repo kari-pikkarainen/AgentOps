@@ -1,3 +1,11 @@
+/**
+ * Claude Code AI Agent Visual Monitoring System
+ * Activity Parser Module
+ * 
+ * Copyright © 2024 Kari Pikkarainen. All rights reserved.
+ * This software is proprietary and confidential.
+ */
+
 const EventEmitter = require('events');
 
 class ActivityParser extends EventEmitter {

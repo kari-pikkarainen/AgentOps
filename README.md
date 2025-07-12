@@ -4,7 +4,7 @@ A comprehensive visual interface for tracking and managing Claude Code AI Agent 
 
 ![Project Status](https://img.shields.io/badge/Status-Phase%202%20Complete-brightgreen)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen)
-![License](https://img.shields.io/badge/License-MIT-blue)
+![License](https://img.shields.io/badge/License-Proprietary-red)
 
 ## 🚀 Features
 
@@ -270,17 +270,15 @@ npm test       # Run tests (future)
 - **Memory Usage**: Under 512MB for desktop application
 - **Real-time Communication**: WebSocket for live updates
 
-## 🤝 Contributing
+## 📄 License & Ownership
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+**Copyright © 2024 Kari Pikkarainen. All rights reserved.**
 
-## 📄 License
+This software is proprietary and confidential. Unauthorized copying, distribution, modification, public performance, or public display of this software is strictly prohibited. No part of this software may be reproduced, distributed, or transmitted in any form or by any means, including photocopying, recording, or other electronic or mechanical methods, without the prior written permission of Kari Pikkarainen.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+**Commercial Use**: This software is intended for personal and internal business use only. Commercial licensing may be available upon request.
+
+**Contact**: For licensing inquiries or permissions, please contact Kari Pikkarainen.
 
 ## 🙏 Acknowledgments
 

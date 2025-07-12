@@ -1,3 +1,11 @@
+/**
+ * Claude Code AI Agent Visual Monitoring System
+ * Process Manager Module
+ * 
+ * Copyright © 2024 Kari Pikkarainen. All rights reserved.
+ * This software is proprietary and confidential.
+ */
+
 const { spawn } = require('child_process');
 const EventEmitter = require('events');
 

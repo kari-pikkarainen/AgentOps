@@ -1,3 +1,11 @@
+/**
+ * Claude Code AI Agent Visual Monitoring System
+ * File System Monitor Module
+ * 
+ * Copyright © 2024 Kari Pikkarainen. All rights reserved.
+ * This software is proprietary and confidential.
+ */
+
 const chokidar = require('chokidar');
 const EventEmitter = require('events');
 const path = require('path');

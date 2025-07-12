@@ -1,3 +1,11 @@
+/**
+ * Claude Code AI Agent Visual Monitoring System
+ * Main Server Application
+ * 
+ * Copyright © 2024 Kari Pikkarainen. All rights reserved.
+ * This software is proprietary and confidential.
+ */
+
 const express = require('express');
 const path = require('path');
 const WebSocket = require('ws');
