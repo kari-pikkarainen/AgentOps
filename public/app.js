@@ -54,8 +54,19 @@ class AgentOpsWorkflow {
         document.getElementById('settings-btn').addEventListener('click', () => this.openSettings());
 
         // Step 2: Folder Selection
-        document.getElementById('browse-folder-btn').addEventListener('click', () => this.openFolderSelector());
-        document.getElementById('project-path').addEventListener('change', () => this.scanProject());
+        const browseFolderBtn = document.getElementById('browse-folder-btn');
+        if (browseFolderBtn) {
+            browseFolderBtn.addEventListener('click', () => this.openFolderSelector());
+        } else {
+            console.error('browse-folder-btn element not found');
+        }
+        
+        const projectPath = document.getElementById('project-path');
+        if (projectPath) {
+            projectPath.addEventListener('change', () => this.scanProject());
+        } else {
+            console.error('project-path element not found');
+        }
 
         // Step 3: Task Management
         document.getElementById('add-custom-task-btn').addEventListener('click', () => this.openCustomTaskModal());
@@ -91,8 +102,18 @@ class AgentOpsWorkflow {
                 const modal = e.target.closest('.modal');
                 if (modal.id === 'settings-modal') {
                     this.closeSettings();
+                } else if (modal.id === 'folder-select-modal') {
+                    this.closeFolderSelector();
+                } else if (modal.id === 'custom-task-modal') {
+                    this.closeCustomTaskModal();
                 } else {
-                    modal.style.display = 'none';
+                    // Generic modal close with animation
+                    if (modal) {
+                        modal.classList.remove('show');
+                        setTimeout(() => {
+                            modal.style.display = 'none';
+                        }, 300);
+                    }
                 }
             });
         });
@@ -116,6 +137,48 @@ class AgentOpsWorkflow {
         setTimeout(() => {
             modal.style.display = 'none';
         }, 300);
+    }
+
+    // Modal helper methods
+    showModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            // Force visibility with inline styles
+            modal.style.display = 'flex';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            modal.style.zIndex = '9999';
+            modal.style.opacity = '1';
+            
+            // Small delay to ensure display is set before adding show class
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+            
+            return true;
+        } else {
+            console.error(`Modal ${modalId} not found`);
+            return false;
+        }
+    }
+
+    hideModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('show');
+            // Wait for animation to complete before hiding
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+            return true;
+        } else {
+            console.error(`Modal ${modalId} not found`);
+            return false;
+        }
     }
 
     setupWebSocket() {
@@ -329,9 +392,10 @@ class AgentOpsWorkflow {
 
     openExistingProjectSelector() {
         // Reuse the existing folder selector modal
-        document.getElementById('folder-select-modal').style.display = 'block';
-        this.isSelectingExistingProject = true;
-        this.loadFolderContents();
+        if (this.showModal('folder-select-modal')) {
+            this.isSelectingExistingProject = true;
+            this.loadFolderContents();
+        }
     }
 
     async analyzeExistingProject(projectPath) {
@@ -410,9 +474,10 @@ class AgentOpsWorkflow {
 
     // Step 2: Folder Selection
     openFolderSelector() {
-        document.getElementById('folder-select-modal').style.display = 'block';
-        // Start from user's home directory
-        this.loadFolderContents();
+        if (this.showModal('folder-select-modal')) {
+            // Start from user's home directory
+            this.loadFolderContents();
+        }
     }
 
     async loadFolderContents(path = null) {
@@ -425,10 +490,17 @@ class AgentOpsWorkflow {
             
             const data = await response.json();
             
-            document.getElementById('current-path').textContent = data.currentPath;
+            const currentPathElement = document.getElementById('current-path');
             const folderList = document.getElementById('folder-list');
             
-            if (data.items.length === 0) {
+            if (!currentPathElement || !folderList) {
+                console.error('Required modal elements not found');
+                return;
+            }
+            
+            currentPathElement.textContent = data.currentPath;
+            
+            if (!data.items || data.items.length === 0) {
                 folderList.innerHTML = '<div class="folder-item"><span class="folder-name">No accessible folders found</span></div>';
                 return;
             }
@@ -481,7 +553,7 @@ class AgentOpsWorkflow {
     }
 
     closeFolderSelector() {
-        document.getElementById('folder-select-modal').style.display = 'none';
+        this.hideModal('folder-select-modal');
     }
 
     async scanProject() {
@@ -609,11 +681,11 @@ class AgentOpsWorkflow {
     }
 
     openCustomTaskModal() {
-        document.getElementById('custom-task-modal').style.display = 'block';
+        this.showModal('custom-task-modal');
     }
 
     closeCustomTaskModal() {
-        document.getElementById('custom-task-modal').style.display = 'none';
+        this.hideModal('custom-task-modal');
         // Clear form
         document.getElementById('custom-task-title').value = '';
         document.getElementById('custom-task-description').value = '';
@@ -934,13 +1006,9 @@ class AgentOpsWorkflow {
 
     openSettings() {
         this.populateSettingsForm();
-        const modal = document.getElementById('settings-modal');
-        modal.style.display = 'flex';
-        // Small delay to ensure display is set before adding show class
-        setTimeout(() => {
-            modal.classList.add('show');
-        }, 10);
-        this.checkClaudeCodeAvailability();
+        if (this.showModal('settings-modal')) {
+            this.checkClaudeCodeAvailability();
+        }
     }
 
     populateSettingsForm() {
@@ -1266,6 +1334,7 @@ function viewProjectFiles() {
         }
     }
 }
+
 
 // Initialize the app when DOM is loaded
 let agentOps;
