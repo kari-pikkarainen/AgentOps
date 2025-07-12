@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentOps - AI Agent Workflow Platform</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <h1>🤖 AgentOps</h1>
+            <div class="header-controls">
+                <div class="workflow-progress">
+                    <div class="step-indicator" data-step="1">1</div>
+                    <div class="step-indicator" data-step="2">2</div>
+                    <div class="step-indicator" data-step="3">3</div>
+                    <div class="step-indicator" data-step="4">4</div>
+                    <div class="step-indicator" data-step="5">5</div>
+                </div>
+                <div class="control-buttons">
+                    <button id="prev-btn" class="btn btn-secondary" disabled>← Previous</button>
+                    <button id="next-btn" class="btn btn-primary">Next →</button>
+                    <button id="start-execution-btn" class="btn btn-success" style="display: none;">🚀 Start Execution</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Step 1: Project Specification -->
+            <div id="step-1" class="workflow-step active">
+                <div class="step-content">
+                    <h2>📋 Project Specification with Claude</h2>
+                    <p class="step-description">Use Claude AI to create a comprehensive product specification, then attach the result here</p>
+                    
+                    <div class="claude-guidance">
+                        <div class="guidance-card">
+                            <h3>🎯 Step-by-Step Guide</h3>
+                            <ol class="guidance-steps">
+                                <li>
+                                    <strong>Open Claude in a new tab</strong>
+                                    <a href="https://claude.ai" target="_blank" class="btn btn-outline btn-small">Open Claude AI →</a>
+                                </li>
+                                <li>
+                                    <strong>Use this prompt to generate your specification:</strong>
+                                    <div class="prompt-box">
+                                        <pre id="claude-prompt">Create a comprehensive product specification for my software project. Include:
+
+1. Project Overview & Vision
+2. Target Audience & User Personas
+3. Core Features & Functionality
+4. Technical Requirements & Architecture
+5. User Interface & Experience Guidelines
+6. Success Metrics & KPIs
+7. Timeline & Development Phases
+8. Risk Assessment & Mitigation
+
+Please ask me questions about my project idea first, then create a detailed specification in markdown format.</pre>
+                                        <button class="copy-btn" onclick="copyPrompt()">📋 Copy Prompt</button>
+                                    </div>
+                                </li>
+                                <li>
+                                    <strong>Answer Claude's questions</strong> about your project idea to refine the specification
+                                </li>
+                                <li>
+                                    <strong>Copy the final markdown specification</strong> that Claude generates
+                                </li>
+                                <li>
+                                    <strong>Paste it below</strong> to continue with your AgentOps workflow
+                                </li>
+                            </ol>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="project-name">Project Name</label>
+                        <input type="text" id="project-name" placeholder="Enter your project name..." />
+                        <small class="form-help">This should match the project name from your Claude specification</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="claude-specification">Claude-Generated Product Specification (Markdown)</label>
+                        <textarea id="claude-specification" rows="12" 
+                                  placeholder="Paste the markdown specification that Claude generated here...
+
+Example format:
+# Project Name
+
+## Project Overview
+Your project description...
+
+## Core Features
+- Feature 1
+- Feature 2
+
+## Technical Requirements
+- Technology stack
+- Architecture decisions
+
+... etc"></textarea>
+                        <small class="form-help">Paste the complete markdown specification from Claude. This will be parsed to extract project details.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="additional-notes">Additional Notes (Optional)</label>
+                        <textarea id="additional-notes" rows="3" 
+                                  placeholder="Any additional thoughts, constraints, or modifications to the Claude specification..."></textarea>
+                    </div>
+                    
+                    <div class="preview-section" id="spec-preview" style="display: none;">
+                        <h3>📄 Specification Preview</h3>
+                        <div class="preview-content" id="preview-content"></div>
+                        <button class="btn btn-outline btn-small" onclick="togglePreview()">Hide Preview</button>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-outline" onclick="togglePreview()">👁️ Preview Specification</button>
+                        <button class="btn btn-outline" onclick="extractProjectDetails()">🔍 Extract Project Details</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Folder Selection -->
+            <div id="step-2" class="workflow-step">
+                <div class="step-content">
+                    <h2>📁 Project Folder Selection</h2>
+                    <p class="step-description">Choose your project directory and configure monitoring settings</p>
+                    
+                    <div class="form-group">
+                        <label for="project-path">Project Directory</label>
+                        <div class="file-input-group">
+                            <input type="text" id="project-path" placeholder="Select project folder..." readonly />
+                            <button id="browse-folder-btn" class="btn btn-outline">Browse</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Monitoring Options</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="monitor-git" checked /> Monitor Git operations
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="monitor-files" checked /> Monitor file changes
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="monitor-commands" checked /> Monitor command execution
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="project-scan-results" class="scan-results" style="display: none;">
+                        <h3>Project Analysis</h3>
+                        <div id="scan-summary"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Task Identification -->
+            <div id="step-3" class="workflow-step">
+                <div class="step-content">
+                    <h2>🎯 Task Identification</h2>
+                    <p class="step-description">AI-generated tasks based on your project specification and analysis</p>
+                    
+                    <div class="loading-state" id="task-loading">
+                        <div class="spinner"></div>
+                        <p>Analyzing project and generating tasks...</p>
+                    </div>
+                    
+                    <div id="identified-tasks" class="task-list" style="display: none;">
+                        <h3>Identified Tasks</h3>
+                        <div id="tasks-container"></div>
+                        
+                        <div class="task-controls">
+                            <button id="add-custom-task-btn" class="btn btn-outline">+ Add Custom Task</button>
+                            <button id="regenerate-tasks-btn" class="btn btn-outline">🔄 Regenerate Tasks</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Task Planning -->
+            <div id="step-4" class="workflow-step">
+                <div class="step-content">
+                    <h2>📊 Task Planning</h2>
+                    <p class="step-description">Review and organize task execution order</p>
+                    
+                    <div class="planning-interface">
+                        <div class="task-priorities">
+                            <h3>Task Execution Order</h3>
+                            <div id="task-order-list" class="sortable-list">
+                                <!-- Tasks will be populated here -->
+                            </div>
+                        </div>
+                        
+                        <div class="execution-settings">
+                            <h3>Execution Settings</h3>
+                            <div class="form-group">
+                                <label for="execution-mode">Execution Mode</label>
+                                <select id="execution-mode">
+                                    <option value="step-by-step">Step-by-step (manual approval)</option>
+                                    <option value="semi-auto">Semi-automatic (pause on errors)</option>
+                                    <option value="automatic">Fully automatic</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="claude-instance-limit">Max Claude Instances</label>
+                                <input type="number" id="claude-instance-limit" value="2" min="1" max="5" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 5: Live Execution & Monitoring -->
+            <div id="step-5" class="workflow-step">
+                <div class="step-content execution-view">
+                    <div class="execution-header">
+                        <h2>🚀 Live Execution & Monitoring</h2>
+                        <div class="execution-controls">
+                            <button id="pause-execution-btn" class="btn btn-warning">⏸️ Pause</button>
+                            <button id="stop-execution-btn" class="btn btn-danger">⏹️ Stop</button>
+                            <button id="resume-execution-btn" class="btn btn-success" style="display: none;">▶️ Resume</button>
+                        </div>
+                    </div>
+                    
+                    <div class="execution-layout">
+                        <div class="left-panel">
+                            <div class="task-progress-section">
+                                <h3>Task Progress</h3>
+                                <div id="task-progress-list" class="task-progress-list">
+                                    <!-- Task progress items will be populated here -->
+                                </div>
+                            </div>
+                            
+                            <div class="claude-instances-section">
+                                <h3>Claude Instances</h3>
+                                <div id="claude-instances-list" class="instances-list">
+                                    <!-- Claude instances will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="right-panel">
+                            <div class="live-activity-section">
+                                <h3>Live Activity Feed</h3>
+                                <div class="activity-filters">
+                                    <button class="filter-btn active" data-filter="all">All</button>
+                                    <button class="filter-btn" data-filter="command">Commands</button>
+                                    <button class="filter-btn" data-filter="file_change">Files</button>
+                                    <button class="filter-btn" data-filter="git_command">Git</button>
+                                    <button class="filter-btn" data-filter="error">Errors</button>
+                                </div>
+                                <div id="live-activity-timeline" class="live-activity-timeline">
+                                    <!-- Live activities will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Task Modal -->
+        <div id="custom-task-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add Custom Task</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="custom-task-title">Task Title</label>
+                        <input type="text" id="custom-task-title" placeholder="Enter task title..." />
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-task-description">Task Description</label>
+                        <textarea id="custom-task-description" rows="3" 
+                                  placeholder="Describe what should be accomplished..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-task-priority">Priority</label>
+                        <select id="custom-task-priority">
+                            <option value="high">High</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="cancel-custom-task-btn" class="btn btn-secondary">Cancel</button>
+                    <button id="add-custom-task-confirm-btn" class="btn btn-primary">Add Task</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Path Selection Modal -->
+        <div id="folder-select-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Select Project Folder</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="folder-browser">
+                        <div class="current-path" id="current-path">/</div>
+                        <div class="folder-list" id="folder-list">
+                            <!-- Folder contents will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="cancel-folder-select-btn" class="btn btn-secondary">Cancel</button>
+                    <button id="select-folder-btn" class="btn btn-primary">Select This Folder</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

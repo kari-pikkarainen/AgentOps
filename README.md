@@ -2,7 +2,7 @@
 
 AgentOps is an AI agent monitoring, control, and workflow visualization platform that brings DevOps principles to AI agent development. It provides real-time oversight and management of AI agents like Claude Code throughout the entire development lifecycle.
 
-![Project Status](https://img.shields.io/badge/Status-Phase%202%20Complete-brightgreen)
+![Project Status](https://img.shields.io/badge/Status-Phase%203%20Frontend%20Complete-brightgreen)
 ![Test Coverage](https://img.shields.io/badge/Coverage-88.46%25-brightgreen)
 ![Branch Coverage](https://img.shields.io/badge/Branch%20Coverage-84.00%25-brightgreen)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen)
@@ -10,17 +10,17 @@ AgentOps is an AI agent monitoring, control, and workflow visualization platform
 
 ## 🚀 Features
 
-### Current (Phase 2 Complete)
-- **Real-time Claude Code Integration** - Direct process management and communication
-- **File System Monitoring** - Live tracking of code changes and modifications
-- **Activity Timeline** - Intelligent parsing and categorization of all activities
-- **Process Management** - Spawn, monitor, and terminate Claude Code instances
-- **Command Execution** - Real-time output capture and parsing
-- **WebSocket Communication** - Live updates for all monitoring activities
-- **Workflow Visualization** - Interactive canvas showing workflow progress
-- **Status Dashboard** - Comprehensive metrics and performance indicators
-- **Activity Search & Filter** - Advanced search capabilities with importance scoring
-- **Multi-Instance Support** - Monitor up to 10 concurrent Claude Code agents
+### Current (Phase 3 Frontend Complete)
+- **🤖 Claude-Powered Project Specification** - Integrated Claude AI workflow for comprehensive product specifications
+- **📁 Real File System Navigation** - Browse and select project directories with full navigation
+- **🎯 5-Step Workflow Management** - Complete end-to-end project workflow from specification to execution
+- **📊 Live Task Monitoring** - Real-time tracking of AI agent task execution with progress visualization
+- **⚡ WebSocket Real-time Communication** - Live updates for all monitoring activities
+- **🔍 Activity Parsing & Classification** - Intelligent categorization of all AI agent activities
+- **💻 Multi-Instance Claude Management** - Spawn, monitor, and terminate multiple Claude Code instances
+- **📈 Interactive Progress Tracking** - Visual workflow progress with step-by-step guidance
+- **🛠️ Advanced Configuration** - Execution modes, instance limits, and monitoring options
+- **🔄 Dynamic Task Generation** - AI-powered task identification based on project specifications
 
 ### Phase 1 Foundation ✅
 - Real-time workflow visualization with interactive canvas
@@ -72,28 +72,42 @@ AgentOps is an AI agent monitoring, control, and workflow visualization platform
 
 ## 🎮 Usage
 
-### Claude Code Instance Management
-- **Start Instance** - Spawn new Claude Code process with custom commands
-- **Monitor Output** - Real-time stdout/stderr capture and parsing
-- **Terminate Instance** - Gracefully stop running instances
-- **Multi-Instance** - Manage up to 10 concurrent instances
+### 🤖 5-Step Workflow Process
 
-### File System Monitoring
-- **Auto-Detection** - Monitors code files, config files, and directories
-- **Smart Filtering** - Ignores node_modules, .git, and other irrelevant files
-- **Real-time Updates** - Instant notifications of file changes
-- **File Type Classification** - Categorizes changes by file type and importance
+#### Step 1: Claude-Powered Project Specification
+- **Claude Integration** - Direct workflow integration with Claude AI
+- **Comprehensive Specifications** - Generate detailed product specifications including vision, features, technical requirements, and risk assessment
+- **Smart Parsing** - Automatic extraction of project details from markdown specifications
+- **One-Click Prompt** - Pre-built prompts for optimal Claude interactions
 
-### Activity Tracking
-- **Intelligent Parsing** - Recognizes commands, errors, completions, and more
-- **Importance Scoring** - Assigns relevance scores (1-10) to activities
-- **Search & Filter** - Find activities by type, importance, or content
-- **Statistics** - Track activity patterns and performance metrics
+#### Step 2: Project Directory Selection  
+- **Real File System Navigation** - Browse and select project directories with full folder navigation
+- **Smart Monitoring Setup** - Configure file monitoring, git tracking, and command execution monitoring
+- **Project Analysis** - Automatic project scanning and configuration
 
-### Interface Overview
-- **Left Panel**: Workflow canvas and status dashboard
-- **Right Panel**: Real-time activity timeline with parsing
-- **Header**: Instance controls and monitoring status
+#### Step 3: AI-Powered Task Identification
+- **Intelligent Task Generation** - AI analyzes specifications to generate relevant development tasks
+- **Task Prioritization** - Automatic priority assignment based on project requirements
+- **Custom Task Creation** - Add custom tasks through intuitive modal interface
+- **Task Selection** - Choose which tasks to include in execution plan
+
+#### Step 4: Execution Planning & Configuration
+- **Task Ordering** - Organize tasks in optimal execution sequence
+- **Execution Modes** - Choose from step-by-step, semi-automatic, or fully automatic execution
+- **Instance Management** - Configure maximum number of concurrent Claude Code instances
+- **Settings Validation** - Ensure execution plan is ready for deployment
+
+#### Step 5: Live Execution & Monitoring
+- **Real-time Task Progress** - Visual progress tracking for all active tasks
+- **Claude Instance Monitoring** - Live status of all running Claude Code processes
+- **Activity Timeline** - Real-time stream of all agent activities with intelligent filtering
+- **Execution Controls** - Pause, resume, and stop execution with full control
+
+### 🔧 Advanced Features
+- **WebSocket Real-time Updates** - Live communication between frontend and backend
+- **Activity Classification** - Intelligent parsing of commands, errors, completions, and more
+- **Multi-Instance Support** - Concurrent management of up to 10 Claude Code agents
+- **File System Integration** - Real-time monitoring of project changes and modifications
 
 ## 📖 API Documentation
 
@@ -157,6 +171,9 @@ POST /api/v1/activities/search
 
 # Clear all activities
 DELETE /api/v1/activities
+
+# Browse file system
+GET /api/v1/filesystem/browse?path=/path/to/directory
 ```
 
 ### WebSocket Events
@@ -194,15 +211,15 @@ ws.onmessage = (event) => {
 
 ```
 CodingAgentWorkflow/
-├── public/
-│   ├── index.html          # Main HTML interface
-│   ├── styles.css          # Styling and animations
-│   └── app.js              # Frontend JavaScript
-├── src/
+├── public/                 # Frontend Application (Phase 3 Complete)
+│   ├── index.html          # 5-step workflow interface with Claude integration
+│   ├── styles.css          # Modern responsive styling with animations
+│   └── app.js              # AgentOpsWorkflow class with real-time features
+├── src/                    # Backend Services
 │   ├── process-manager.js  # Claude Code process management
-│   ├── file-monitor.js     # File system monitoring
-│   ├── activity-parser.js  # Activity parsing and classification
-│   ├── api-routes.js       # REST API route handlers
+│   ├── file-monitor.js     # File system monitoring with Chokidar
+│   ├── activity-parser.js  # Intelligent activity parsing and classification
+│   ├── api-routes.js       # REST API routes + File system browsing
 │   └── websocket-handler.js # WebSocket connection management
 ├── test/                   # Test suites (114 tests, 88.46% coverage)
 │   ├── api-routes.test.js
@@ -260,14 +277,23 @@ npm run test:coverage # Run tests with coverage report
 - [x] Command execution and output capture
 - [x] REST API endpoints and WebSocket integration
 
-### Phase 3: Advanced Features (Next)
-- [ ] Workflow designer with drag-and-drop interface
-- [ ] Custom workflow templates and sharing
-- [ ] Advanced analytics and performance metrics
-- [ ] Multi-project support and management
-- [ ] Enhanced UI with React/TypeScript
+### Phase 3: Frontend Complete ✅
+- [x] **5-Step Workflow Interface** - Complete user journey from specification to execution
+- [x] **Claude AI Integration** - Direct integration for product specification generation
+- [x] **Real File System Navigation** - Full directory browsing and selection
+- [x] **Task Management System** - AI-powered task generation, selection, and planning
+- [x] **Live Execution Monitoring** - Real-time progress tracking and instance management
+- [x] **Modern Responsive UI** - Professional interface with animations and interactions
+- [x] **WebSocket Frontend Integration** - Real-time communication with backend services
 
-### Phase 4: Mobile & Enterprise
+### Phase 4: Advanced Features (Next)
+- [ ] Enhanced task generation with Claude Code integration
+- [ ] Advanced workflow analytics and reporting
+- [ ] Multi-project workspace management
+- [ ] Team collaboration features
+- [ ] Custom workflow templates and sharing
+
+### Phase 5: Mobile & Enterprise
 - [ ] Native iOS app with SwiftUI
 - [ ] Native Android app with Kotlin/Compose
 - [ ] Cross-platform mobile with React Native/Flutter
@@ -315,4 +341,4 @@ This software is proprietary and confidential. Unauthorized copying, distributio
 
 ---
 
-**Phase 2 Complete**: AgentOps now provides real Claude Code integration with process management, file monitoring, activity parsing, and comprehensive WebSocket/REST API support. Enhanced with **88.46% test coverage (84% branch coverage)** achieving all quality thresholds and modular architecture for robust development. Ready for Phase 3 advanced features development.
+**Phase 3 Frontend Complete**: AgentOps now features a complete 5-step workflow interface with Claude AI integration, real file system navigation, intelligent task management, and live execution monitoring. Built on robust backend with **88.46% test coverage (84% branch coverage)** and real-time WebSocket communication. Ready for Phase 4 advanced workflow features and analytics.

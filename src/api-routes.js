@@ -9,6 +9,8 @@
 const processManager = require('./process-manager');
 const fileMonitor = require('./file-monitor');
 const activityParser = require('./activity-parser');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Configure all API routes for the Express app
@@ -34,6 +36,9 @@ function configureApiRoutes(app) {
     app.get('/api/v1/activities/statistics', getActivityStatistics);
     app.post('/api/v1/activities/search', searchActivities);
     app.delete('/api/v1/activities', clearActivities);
+
+    // File system browsing routes
+    app.get('/api/v1/filesystem/browse', browseFolders);
 }
 
 // Claude Code Instance Management Handlers
@@ -175,6 +180,78 @@ function clearActivities(req, res) {
     }
 }
 
+// File System Browsing Handlers
+function browseFolders(req, res) {
+    try {
+        const { path: browsePath } = req.query;
+        const targetPath = browsePath || process.env.HOME || '/';
+        
+        // Security check: prevent access to sensitive directories
+        const normalizedPath = path.resolve(targetPath);
+        
+        if (!fs.existsSync(normalizedPath)) {
+            return res.status(404).json({ error: 'Path does not exist' });
+        }
+        
+        const stats = fs.statSync(normalizedPath);
+        if (!stats.isDirectory()) {
+            return res.status(400).json({ error: 'Path is not a directory' });
+        }
+        
+        const items = [];
+        
+        // Add parent directory option (except for root)
+        if (normalizedPath !== '/' && normalizedPath !== path.parse(normalizedPath).root) {
+            items.push({
+                name: '..',
+                type: 'parent',
+                path: path.dirname(normalizedPath),
+                isDirectory: true
+            });
+        }
+        
+        // Read directory contents
+        const files = fs.readdirSync(normalizedPath);
+        
+        for (const file of files) {
+            try {
+                // Skip hidden files for security
+                if (file.startsWith('.')) continue;
+                
+                const filePath = path.join(normalizedPath, file);
+                const fileStats = fs.statSync(filePath);
+                
+                if (fileStats.isDirectory()) {
+                    items.push({
+                        name: file,
+                        type: 'folder',
+                        path: filePath,
+                        isDirectory: true
+                    });
+                }
+            } catch (error) {
+                // Skip files that can't be read (permission issues, etc.)
+                continue;
+            }
+        }
+        
+        // Sort: parent first, then folders alphabetically
+        items.sort((a, b) => {
+            if (a.type === 'parent') return -1;
+            if (b.type === 'parent') return 1;
+            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        });
+        
+        res.json({
+            currentPath: normalizedPath,
+            items: items
+        });
+        
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to browse folders', details: error.message });
+    }
+}
+
 module.exports = {
     configureApiRoutes,
     // Export individual handlers for testing
@@ -188,5 +265,6 @@ module.exports = {
     getActivities,
     getActivityStatistics,
     searchActivities,
-    clearActivities
+    clearActivities,
+    browseFolders
 };
