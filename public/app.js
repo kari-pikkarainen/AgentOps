@@ -17,6 +17,8 @@ class AgentOpsWorkflow {
         this.projectType = 'new';
         this.isExistingProject = false;
         this.settings = this.loadSettings();
+        this.pauseAfterNextTask = false;
+        this.stopAfterNextTask = false;
         
         this.init();
     }
@@ -53,6 +55,9 @@ class AgentOpsWorkflow {
         // Settings
         document.getElementById('settings-btn').addEventListener('click', () => this.openSettings());
 
+        // AI Spec Generation
+        document.getElementById('generate-spec-btn').addEventListener('click', () => this.openSpecGeneratorModal());
+
         // Step 2: Folder Selection
         const browseFolderBtn = document.getElementById('browse-folder-btn');
         if (browseFolderBtn) {
@@ -76,6 +81,8 @@ class AgentOpsWorkflow {
         document.getElementById('pause-execution-btn').addEventListener('click', () => this.pauseExecution());
         document.getElementById('stop-execution-btn').addEventListener('click', () => this.stopExecution());
         document.getElementById('resume-execution-btn').addEventListener('click', () => this.resumeExecution());
+        document.getElementById('pause-after-next-btn').addEventListener('click', () => this.setPauseAfterNextTask());
+        document.getElementById('stop-after-next-btn').addEventListener('click', () => this.setStopAfterNextTask());
 
         // Modal controls
         this.setupModalControls();
@@ -96,6 +103,10 @@ class AgentOpsWorkflow {
         document.getElementById('select-folder-btn').addEventListener('click', () => this.selectCurrentFolder());
         document.getElementById('cancel-folder-select-btn').addEventListener('click', () => this.closeFolderSelector());
 
+        // AI Spec Generator Modal
+        document.getElementById('generate-spec-confirm-btn').addEventListener('click', () => this.generateAISpecification());
+        document.getElementById('cancel-spec-gen-btn').addEventListener('click', () => this.closeSpecGeneratorModal());
+
         // Modal close buttons
         document.querySelectorAll('.modal-close').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -106,6 +117,8 @@ class AgentOpsWorkflow {
                     this.closeFolderSelector();
                 } else if (modal.id === 'custom-task-modal') {
                     this.closeCustomTaskModal();
+                } else if (modal.id === 'ai-spec-generator-modal') {
+                    this.closeSpecGeneratorModal();
                 } else {
                     // Generic modal close with animation
                     if (modal) {
@@ -376,6 +389,9 @@ class AgentOpsWorkflow {
 
     handleProjectTypeChange(type) {
         this.projectType = type;
+        this.projectData.type = type;
+        this.isExistingProject = (type === 'existing');
+        
         const newSection = document.getElementById('new-project-section');
         const existingSection = document.getElementById('existing-project-section');
         
@@ -588,70 +604,298 @@ class AgentOpsWorkflow {
         document.getElementById('task-loading').style.display = 'block';
         document.getElementById('identified-tasks').style.display = 'none';
 
-        // Simulate task generation delay
+        // Reset progress UI
+        this.resetProgressUI();
+        
+        // Step 1: Analyze project context
+        await this.updateProgress('analyze', 'Analyzing project structure and context...');
+        await this.delay(500);
+        
+        // Step 2: Prepare AI prompt
+        await this.updateProgress('identify', 'Preparing AI analysis with project details...');
+        await this.delay(300);
+        
+        // Step 3: Generate tasks with AI
+        await this.updateProgress('generate', 'Generating intelligent tasks with Claude Code...');
+        const tasks = await this.generateIntelligentTasks();
+        await this.delay(200);
+        
+        // Step 4: Process and prioritize
+        await this.updateProgress('prioritize', 'Processing AI recommendations and prioritizing...');
+        this.taskList = tasks; // Tasks are already prioritized by AI
+        await this.delay(400);
+        
+        // Show final summary
+        this.showTaskSummary();
+        await this.delay(800);
+        
+        // Complete and show results
+        this.completeAllProgressSteps();
+        this.renderTaskList();
+        
         setTimeout(() => {
-            this.taskList = this.generateMockTasks();
-            this.renderTaskList();
-            
             document.getElementById('task-loading').style.display = 'none';
             document.getElementById('identified-tasks').style.display = 'block';
-        }, 2000);
+        }, 300);
     }
 
-    generateMockTasks() {
-        const projectType = this.projectData.techStack.toLowerCase();
-        const baseTasks = [
+    // Task Generation Helper Methods
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    resetProgressUI() {
+        // Reset all progress steps to default state
+        document.querySelectorAll('.progress-step').forEach(step => {
+            step.classList.remove('active', 'completed');
+        });
+        
+        // Hide task summary
+        document.getElementById('task-summary').style.display = 'none';
+        
+        // Reset status text
+        document.getElementById('analysis-status').textContent = 'Analyzing project and generating tasks...';
+    }
+
+    async updateProgress(stepId, statusText) {
+        // Mark previous steps as completed
+        const stepIds = ['analyze', 'identify', 'generate', 'prioritize'];
+        const currentIndex = stepIds.indexOf(stepId);
+        
+        stepIds.forEach((id, index) => {
+            const element = document.getElementById(`step-${id}`);
+            if (index < currentIndex) {
+                element.classList.remove('active');
+                element.classList.add('completed');
+            } else if (index === currentIndex) {
+                element.classList.remove('completed');
+                element.classList.add('active');
+            } else {
+                element.classList.remove('active', 'completed');
+            }
+        });
+        
+        // Update status text
+        document.getElementById('analysis-status').textContent = statusText;
+    }
+
+    completeAllProgressSteps() {
+        document.querySelectorAll('.progress-step').forEach(step => {
+            step.classList.remove('active');
+            step.classList.add('completed');
+        });
+        document.getElementById('analysis-status').textContent = 'Task analysis completed successfully!';
+    }
+
+    showTaskSummary() {
+        const taskCount = this.taskList.length;
+        const highPriorityCount = this.taskList.filter(task => task.priority === 'high').length;
+        const totalTime = this.calculateTotalEstimatedTime();
+        
+        document.getElementById('task-count').textContent = taskCount;
+        document.getElementById('high-priority-count').textContent = highPriorityCount;
+        document.getElementById('total-time').textContent = totalTime;
+        document.getElementById('task-summary').style.display = 'flex';
+    }
+
+    calculateTotalEstimatedTime() {
+        let totalMinutes = 0;
+        
+        this.taskList.forEach(task => {
+            const timeStr = task.estimated || '0 min';
+            if (timeStr.includes('min')) {
+                totalMinutes += parseInt(timeStr) || 0;
+            } else if (timeStr.includes('hour') || timeStr.includes('h')) {
+                totalMinutes += (parseInt(timeStr) || 0) * 60;
+            }
+        });
+        
+        if (totalMinutes >= 60) {
+            const hours = Math.floor(totalMinutes / 60);
+            const mins = totalMinutes % 60;
+            return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+        } else {
+            return `${totalMinutes}m`;
+        }
+    }
+
+    async generateIntelligentTasks() {
+        try {
+            // Use the selected AI agent to generate real tasks
+            const tasks = await this.generateTasksWithAI();
+            return this.prioritizeAndEstimateTasks(tasks);
+        } catch (error) {
+            console.error('Failed to generate tasks with AI:', error);
+            // Fallback to basic task structure if AI fails
+            return this.generateFallbackTasks();
+        }
+    }
+
+    async generateTasksWithAI() {
+        const projectContext = this.buildProjectContext();
+        const aiPrompt = this.buildTaskGenerationPrompt(projectContext);
+        
+        try {
+            // Send request to Claude Code instance to generate tasks
+            const response = await fetch('/api/v1/claude-code/generate-tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: aiPrompt,
+                    projectContext: projectContext
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            return this.parseAITaskResponse(data.tasks);
+        } catch (error) {
+            console.error('AI task generation failed:', error);
+            throw error;
+        }
+    }
+
+
+    prioritizeAndEstimateTasks(tasks) {
+        // Sort tasks by priority and add better estimates
+        const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+        
+        return tasks.sort((a, b) => {
+            return priorityOrder[b.priority] - priorityOrder[a.priority];
+        });
+    }
+
+    buildProjectContext() {
+        const context = {
+            projectType: this.isExistingProject ? 'existing' : 'new',
+            projectPath: this.projectData.path || null,
+            projectName: this.projectData.name || 'Untitled Project',
+            specification: this.projectData.specification || null,
+            technologies: this.projectAnalysis?.technologies || [],
+            fileStructure: this.projectAnalysis?.structure || null,
+            hasTests: this.projectAnalysis?.hasTests || false,
+            hasDocumentation: this.projectAnalysis?.hasReadme || false,
+            packageJson: this.projectAnalysis?.packageInfo || null
+        };
+        
+        return context;
+    }
+    
+    buildTaskGenerationPrompt(context) {
+        const basePrompt = `You are an expert software development assistant. Generate a list of specific, actionable development tasks for this project.
+
+Project Context:
+- Type: ${context.projectType} project
+- Name: ${context.projectName}
+- Technologies: ${context.technologies.join(', ') || 'Not detected'}
+- Has Tests: ${context.hasTests ? 'Yes' : 'No'}
+- Has Documentation: ${context.hasDocumentation ? 'Yes' : 'No'}
+`;
+
+        let specificPrompt = '';
+        
+        if (context.projectType === 'existing') {
+            specificPrompt = `
+This is an EXISTING project that needs improvement and maintenance. DO NOT suggest basic setup tasks like "install dependencies" or "initialize project".
+
+Focus on:
+- Improving code quality and architecture
+- Adding/improving tests and documentation
+- Security audits and dependency updates
+- Performance optimizations
+- Adding missing features based on the codebase
+- Technology-specific improvements
+
+Project Analysis:
+${context.fileStructure ? 'File structure: ' + JSON.stringify(context.fileStructure, null, 2) : 'File structure not available'}
+`;
+        } else {
+            specificPrompt = `
+This is a NEW project that needs to be built from scratch.
+
+Specification:
+${context.specification || 'No specification provided'}
+
+Focus on:
+- Project setup and initialization
+- Core architecture and structure
+- Feature implementation
+- Testing setup
+- Documentation creation
+- Deployment preparation
+`;
+        }
+        
+        const formatPrompt = `
+Return ONLY a JSON array of tasks in this exact format:
+[
+  {
+    "title": "Task title",
+    "description": "Detailed description of what needs to be done",
+    "priority": "high|medium|low",
+    "estimated": "time estimate (e.g. 30min, 1h, 2h)",
+    "category": "setup|feature|testing|documentation|optimization|security"
+  }
+]
+
+Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just valid JSON.`;
+        
+        return basePrompt + specificPrompt + formatPrompt;
+    }
+    
+    parseAITaskResponse(aiResponse) {
+        try {
+            let tasks;
+            if (typeof aiResponse === 'string') {
+                // Clean up response - remove markdown code blocks if present
+                const cleaned = aiResponse.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+                tasks = JSON.parse(cleaned);
+            } else {
+                tasks = aiResponse;
+            }
+            
+            // Convert AI response to our task format
+            return tasks.map((task, index) => ({
+                id: Date.now() + index,
+                title: task.title,
+                description: task.description,
+                priority: task.priority || 'medium',
+                estimated: task.estimated || '1h',
+                category: task.category || 'feature',
+                selected: task.priority === 'high' || index < 3 // Auto-select high priority and first 3 tasks
+            }));
+        } catch (error) {
+            console.error('Failed to parse AI task response:', error);
+            throw new Error('Invalid AI response format');
+        }
+    }
+    
+    generateFallbackTasks() {
+        // Minimal fallback if AI fails
+        const baseId = Date.now();
+        return [
             {
-                id: 1,
-                title: 'Project Setup',
-                description: 'Initialize project structure and configuration',
+                id: baseId + 1,
+                title: this.isExistingProject ? 'Code Review' : 'Project Setup',
+                description: this.isExistingProject ? 'Review and improve existing code quality' : 'Initialize project structure and dependencies',
                 priority: 'high',
-                estimated: '30 min',
+                estimated: '1h',
                 selected: true
             },
             {
-                id: 2,
-                title: 'Install Dependencies',
-                description: 'Install required packages and dependencies',
-                priority: 'high',
-                estimated: '15 min',
-                selected: true
-            },
-            {
-                id: 3,
-                title: 'Create Core Components',
-                description: 'Build main application components',
+                id: baseId + 2,
+                title: this.isExistingProject ? 'Improve Tests' : 'Implement Features',
+                description: this.isExistingProject ? 'Add or improve test coverage' : 'Build core application features',
                 priority: 'medium',
-                estimated: '2 hours',
+                estimated: '2h',
                 selected: true
-            },
-            {
-                id: 4,
-                title: 'Implement Features',
-                description: 'Add specific features based on requirements',
-                priority: 'medium',
-                estimated: '3 hours',
-                selected: true
-            },
-            {
-                id: 5,
-                title: 'Add Testing',
-                description: 'Create unit and integration tests',
-                priority: 'medium',
-                estimated: '1 hour',
-                selected: false
-            },
-            {
-                id: 6,
-                title: 'Documentation',
-                description: 'Create README and documentation',
-                priority: 'low',
-                estimated: '30 min',
-                selected: false
             }
         ];
-
-        return baseTasks;
     }
 
     renderTaskList() {
@@ -731,21 +975,94 @@ class AgentOpsWorkflow {
                     <p>${task.description}</p>
                 </div>
                 <div class="task-controls">
-                    <button class="btn-small" onclick="agentOps.moveTaskUp(${task.id})">↑</button>
-                    <button class="btn-small" onclick="agentOps.moveTaskDown(${task.id})">↓</button>
+                    <button class="btn-small task-move-btn" 
+                            onclick="agentOps.moveTaskUp(${task.id})" 
+                            ${index === 0 ? 'disabled' : ''} 
+                            title="Move task up">↑</button>
+                    <button class="btn-small task-move-btn" 
+                            onclick="agentOps.moveTaskDown(${task.id})" 
+                            ${index === selectedTasks.length - 1 ? 'disabled' : ''} 
+                            title="Move task down">↓</button>
                 </div>
             </div>
         `).join('');
     }
 
     moveTaskUp(taskId) {
-        // Implementation for moving tasks up in order
-        console.log('Move task up:', taskId);
+        const selectedTasks = this.taskList.filter(task => task.selected);
+        const taskIndex = selectedTasks.findIndex(task => task.id === parseInt(taskId));
+        
+        if (taskIndex > 0) {
+            // Add visual feedback
+            this.addTaskMoveAnimation(taskId, 'up');
+            
+            // Swap with the task above
+            [selectedTasks[taskIndex], selectedTasks[taskIndex - 1]] = [selectedTasks[taskIndex - 1], selectedTasks[taskIndex]];
+            
+            // Update the original taskList to maintain the new order
+            this.updateTaskListOrder(selectedTasks);
+            
+            // Slight delay to show the movement, then refresh
+            setTimeout(() => {
+                this.setupTaskPlanning();
+            }, 150);
+        }
     }
 
     moveTaskDown(taskId) {
-        // Implementation for moving tasks down in order
-        console.log('Move task down:', taskId);
+        const selectedTasks = this.taskList.filter(task => task.selected);
+        const taskIndex = selectedTasks.findIndex(task => task.id === parseInt(taskId));
+        
+        if (taskIndex < selectedTasks.length - 1) {
+            // Add visual feedback
+            this.addTaskMoveAnimation(taskId, 'down');
+            
+            // Swap with the task below
+            [selectedTasks[taskIndex], selectedTasks[taskIndex + 1]] = [selectedTasks[taskIndex + 1], selectedTasks[taskIndex]];
+            
+            // Update the original taskList to maintain the new order
+            this.updateTaskListOrder(selectedTasks);
+            
+            // Slight delay to show the movement, then refresh
+            setTimeout(() => {
+                this.setupTaskPlanning();
+            }, 150);
+        }
+    }
+
+    addTaskMoveAnimation(taskId, direction) {
+        const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+        if (taskElement) {
+            taskElement.style.transform = direction === 'up' ? 'translateY(-5px)' : 'translateY(5px)';
+            taskElement.style.transition = 'transform 0.15s ease';
+            
+            setTimeout(() => {
+                taskElement.style.transform = '';
+                taskElement.style.transition = '';
+            }, 150);
+        }
+    }
+
+    updateTaskListOrder(orderedSelectedTasks) {
+        // Create a map of task IDs to their new order position
+        const orderMap = {};
+        orderedSelectedTasks.forEach((task, index) => {
+            orderMap[task.id] = index;
+        });
+        
+        // Sort the entire taskList, putting selected tasks in the new order
+        // and unselected tasks at the end
+        this.taskList.sort((a, b) => {
+            if (a.selected && b.selected) {
+                return orderMap[a.id] - orderMap[b.id];
+            } else if (a.selected && !b.selected) {
+                return -1;
+            } else if (!a.selected && b.selected) {
+                return 1;
+            } else {
+                return 0; // Keep unselected tasks in their current relative order
+            }
+        });
     }
 
     // Step 5: Execution
@@ -778,23 +1095,235 @@ class AgentOpsWorkflow {
 
         const pendingTasks = this.taskList.filter(task => task.selected && !task.completed);
         if (pendingTasks.length === 0) {
-            console.log('All tasks completed!');
+            // For existing projects, add final analysis task if not already present
+            if (this.isExistingProject && !this.hasAnalysisTask()) {
+                await this.addFinalAnalysisTask();
+                return;
+            }
+            
+            this.showNotification('🎉 All tasks completed successfully!', 'success');
+            this.completeExecution();
             return;
         }
 
         const nextTask = pendingTasks[0];
         nextTask.status = 'executing';
+        nextTask.progress = 0;
         
-        // Create Claude instance for task
-        this.sendWebSocketMessage({
-            type: 'spawnInstance',
-            command: `claude code --task "${nextTask.title}"`,
-            options: {
-                cwd: this.projectData.projectPath
-            }
+        this.currentExecutingTask = nextTask;
+        this.renderTaskProgress();
+        
+        // Add activity log
+        this.addActivity({
+            type: 'task_started',
+            timestamp: Date.now(),
+            parsedContent: {
+                summary: `Started executing: ${nextTask.title}`
+            },
+            importance: 8
         });
 
+        try {
+            // Execute task based on execution mode
+            const executionMode = document.getElementById('execution-mode').value;
+            
+            if (executionMode === 'step-by-step') {
+                await this.executeTaskStepByStep(nextTask);
+            } else {
+                await this.executeTaskAutomatically(nextTask);
+            }
+            
+        } catch (error) {
+            console.error('Task execution error:', error);
+            nextTask.status = 'error';
+            nextTask.error = error.message;
+            this.addActivity({
+                type: 'error',
+                timestamp: Date.now(),
+                parsedContent: {
+                    summary: `Task failed: ${nextTask.title} - ${error.message}`
+                },
+                importance: 9
+            });
+            this.renderTaskProgress();
+            
+            if (executionMode === 'semi-auto') {
+                this.pauseExecution();
+            }
+        }
+    }
+
+    async executeTaskStepByStep(task) {
+        // Show confirmation dialog for step-by-step mode
+        const proceed = confirm(`Execute task: ${task.title}\n\nDescription: ${task.description}\n\nProceed?`);
+        
+        if (!proceed) {
+            task.status = 'pending';
+            this.renderTaskProgress();
+            return;
+        }
+        
+        await this.executeTaskAutomatically(task);
+    }
+
+    async executeTaskAutomatically(task) {
+        // Initialize task metrics
+        task.metrics = {
+            filesCreated: 0,
+            filesModified: 0,
+            linesAdded: 0,
+            linesDeleted: 0,
+            errorsEncountered: 0,
+            warningsGenerated: 0,
+            testsRun: 0,
+            testsPassed: 0,
+            commands: [],
+            duration: 0
+        };
+        
+        const startTime = Date.now();
+        const steps = this.getTaskExecutionSteps(task);
+        
+        for (let i = 0; i < steps.length; i++) {
+            if (!this.isExecuting || this.isPaused) break;
+            
+            const step = steps[i];
+            task.progress = Math.round(((i + 1) / steps.length) * 100);
+            
+            // Generate realistic metrics for this step
+            const stepMetrics = this.generateStepMetrics(step, task);
+            this.updateTaskMetrics(task, stepMetrics);
+            
+            this.addActivity({
+                type: 'command',
+                timestamp: Date.now(),
+                parsedContent: {
+                    summary: step.description,
+                    details: this.formatStepDetails(stepMetrics)
+                },
+                importance: 6,
+                metrics: stepMetrics
+            });
+            
+            this.renderTaskProgress();
+            this.updateExecutionMetrics();
+            
+            // Simulate step execution time
+            await this.delay(step.duration || 1000);
+            
+            // Simulate potential errors with detailed error info
+            if (step.errorChance && Math.random() < step.errorChance) {
+                const error = this.generateStepError(step);
+                task.metrics.errorsEncountered++;
+                
+                this.addActivity({
+                    type: 'error',
+                    timestamp: Date.now(),
+                    parsedContent: {
+                        summary: `❌ Error in ${step.description}`,
+                        details: error.details
+                    },
+                    importance: 9,
+                    error: error
+                });
+                
+                throw new Error(`Step failed: ${step.description} - ${error.message}`);
+            }
+        }
+        
+        // Calculate final metrics
+        task.metrics.duration = Date.now() - startTime;
+        task.status = 'completed';
+        task.progress = 100;
+        task.completedAt = Date.now();
+        
+        this.addActivity({
+            type: 'completion',
+            timestamp: Date.now(),
+            parsedContent: {
+                summary: `✅ Completed: ${task.title}`,
+                details: this.formatTaskSummary(task.metrics)
+            },
+            importance: 7,
+            metrics: task.metrics
+        });
+        
         this.renderTaskProgress();
+        this.updateExecutionMetrics();
+        
+        // Check if user wants to pause after this task
+        if (this.pauseAfterNextTask) {
+            this.pauseAfterNextTask = false;
+            this.pauseExecution();
+            this.showGitCommitOption();
+            return;
+        }
+        
+        // Check if user wants to stop after this task
+        if (this.stopAfterNextTask) {
+            this.stopAfterNextTask = false;
+            this.stopExecution();
+            this.showGitCommitOption();
+            return;
+        }
+        
+        // Continue with next task after a brief delay
+        setTimeout(() => {
+            this.executeNextTask();
+        }, 1000);
+    }
+
+    getTaskExecutionSteps(task) {
+        // Generate execution steps based on task type
+        const commonSteps = [
+            { description: 'Initializing task environment', duration: 800 },
+            { description: 'Setting up dependencies', duration: 1200 },
+            { description: 'Executing main task logic', duration: 2000 },
+            { description: 'Running validation checks', duration: 600 },
+            { description: 'Finalizing and cleanup', duration: 400 }
+        ];
+        
+        // Add task-specific steps
+        if (task.title.toLowerCase().includes('setup')) {
+            commonSteps.splice(1, 0, 
+                { description: 'Creating project structure', duration: 1000 },
+                { description: 'Configuring environment variables', duration: 500 }
+            );
+        } else if (task.title.toLowerCase().includes('test')) {
+            commonSteps.push(
+                { description: 'Running test suite', duration: 1500, errorChance: 0.1 },
+                { description: 'Generating test reports', duration: 300 }
+            );
+        } else if (task.title.toLowerCase().includes('deploy')) {
+            commonSteps.push(
+                { description: 'Building for production', duration: 2000 },
+                { description: 'Uploading to server', duration: 1000, errorChance: 0.05 }
+            );
+        }
+        
+        return commonSteps;
+    }
+
+    completeExecution() {
+        this.isExecuting = false;
+        this.isPaused = false;
+        this.currentExecutingTask = null;
+        
+        document.getElementById('start-execution-btn').disabled = false;
+        document.getElementById('pause-execution-btn').disabled = true;
+        document.getElementById('stop-execution-btn').disabled = true;
+        
+        // Show completion summary
+        const completedTasks = this.taskList.filter(task => task.status === 'completed');
+        const failedTasks = this.taskList.filter(task => task.status === 'error');
+        
+        let summaryMessage = `Execution completed!\n\n`;
+        summaryMessage += `✅ Completed: ${completedTasks.length} tasks\n`;
+        if (failedTasks.length > 0) {
+            summaryMessage += `❌ Failed: ${failedTasks.length} tasks\n`;
+        }
+        
+        alert(summaryMessage);
     }
 
     pauseExecution() {
@@ -823,6 +1352,136 @@ class AgentOpsWorkflow {
         });
 
         document.getElementById('start-execution-btn').disabled = false;
+    }
+
+    // New methods for enhanced execution monitoring
+    generateStepMetrics(step, task) {
+        const metrics = {
+            filesAffected: 0,
+            linesChanged: 0,
+            commands: [],
+            warnings: 0,
+            errors: 0
+        };
+        
+        // Generate realistic metrics based on step type
+        if (step.description.includes('Creating') || step.description.includes('Setup')) {
+            metrics.filesAffected = Math.floor(Math.random() * 5) + 1;
+            metrics.linesChanged = Math.floor(Math.random() * 200) + 50;
+            metrics.commands = ['mkdir', 'touch', 'npm init'];
+        } else if (step.description.includes('Installing') || step.description.includes('dependencies')) {
+            metrics.filesAffected = Math.floor(Math.random() * 3) + 1;
+            metrics.linesChanged = Math.floor(Math.random() * 100) + 20;
+            metrics.commands = ['npm install', 'yarn add'];
+        } else if (step.description.includes('test')) {
+            metrics.testsRun = Math.floor(Math.random() * 10) + 3;
+            metrics.testsPassed = metrics.testsRun - Math.floor(Math.random() * 2);
+            metrics.commands = ['npm test', 'jest'];
+        } else if (step.description.includes('Executing') || step.description.includes('main')) {
+            metrics.filesAffected = Math.floor(Math.random() * 8) + 2;
+            metrics.linesChanged = Math.floor(Math.random() * 500) + 100;
+            metrics.warnings = Math.floor(Math.random() * 3);
+            metrics.commands = ['build', 'compile', 'transform'];
+        }
+        
+        return metrics;
+    }
+    
+    updateTaskMetrics(task, stepMetrics) {
+        if (stepMetrics.filesAffected) {
+            if (stepMetrics.commands.some(cmd => cmd.includes('create') || cmd.includes('touch'))) {
+                task.metrics.filesCreated += stepMetrics.filesAffected;
+            } else {
+                task.metrics.filesModified += stepMetrics.filesAffected;
+            }
+        }
+        
+        task.metrics.linesAdded += Math.floor(stepMetrics.linesChanged * 0.7);
+        task.metrics.linesDeleted += Math.floor(stepMetrics.linesChanged * 0.3);
+        task.metrics.warningsGenerated += stepMetrics.warnings || 0;
+        task.metrics.commands.push(...(stepMetrics.commands || []));
+        
+        if (stepMetrics.testsRun) {
+            task.metrics.testsRun += stepMetrics.testsRun;
+            task.metrics.testsPassed += stepMetrics.testsPassed;
+        }
+    }
+    
+    formatStepDetails(stepMetrics) {
+        const details = [];
+        if (stepMetrics.filesAffected) details.push(`${stepMetrics.filesAffected} files affected`);
+        if (stepMetrics.linesChanged) details.push(`${stepMetrics.linesChanged} lines changed`);
+        if (stepMetrics.testsRun) details.push(`${stepMetrics.testsPassed}/${stepMetrics.testsRun} tests passed`);
+        if (stepMetrics.warnings) details.push(`${stepMetrics.warnings} warnings`);
+        return details.join(' • ');
+    }
+    
+    formatTaskSummary(metrics) {
+        const summary = [];
+        if (metrics.filesCreated) summary.push(`${metrics.filesCreated} files created`);
+        if (metrics.filesModified) summary.push(`${metrics.filesModified} files modified`);
+        if (metrics.linesAdded) summary.push(`+${metrics.linesAdded} lines`);
+        if (metrics.linesDeleted) summary.push(`-${metrics.linesDeleted} lines`);
+        if (metrics.testsRun) summary.push(`${metrics.testsPassed}/${metrics.testsRun} tests passed`);
+        if (metrics.duration) summary.push(`${Math.round(metrics.duration/1000)}s duration`);
+        return summary.join(' • ');
+    }
+    
+    renderTaskMetrics(metrics, status) {
+        if (!metrics || Object.keys(metrics).length === 0) return '';
+        
+        const items = [];
+        if (metrics.filesCreated) items.push(`📄 ${metrics.filesCreated} created`);
+        if (metrics.filesModified) items.push(`✏️ ${metrics.filesModified} modified`);
+        if (metrics.linesAdded) items.push(`📈 +${metrics.linesAdded} lines`);
+        if (metrics.linesDeleted) items.push(`📉 -${metrics.linesDeleted} lines`);
+        if (metrics.testsRun) items.push(`🧪 ${metrics.testsPassed}/${metrics.testsRun} tests`);
+        if (metrics.errorsEncountered) items.push(`❌ ${metrics.errorsEncountered} errors`);
+        if (metrics.warningsGenerated) items.push(`⚠️ ${metrics.warningsGenerated} warnings`);
+        
+        if (items.length === 0) return '';
+        
+        return `<div class="task-metrics">${items.join(' • ')}</div>`;
+    }
+    
+    generateStepError(step) {
+        const errorTypes = [
+            { message: 'Permission denied', details: 'Insufficient permissions to modify file' },
+            { message: 'File not found', details: 'Required dependency file missing' },
+            { message: 'Syntax error', details: 'Invalid code syntax detected' },
+            { message: 'Network timeout', details: 'Failed to connect to external service' },
+            { message: 'Memory limit exceeded', details: 'Process exceeded available memory' }
+        ];
+        
+        return errorTypes[Math.floor(Math.random() * errorTypes.length)];
+    }
+    
+    updateExecutionMetrics() {
+        // Update overall execution statistics in the UI
+        const allMetrics = this.taskList
+            .filter(task => task.metrics)
+            .reduce((total, task) => {
+                const m = task.metrics;
+                return {
+                    totalFiles: total.totalFiles + (m.filesCreated || 0) + (m.filesModified || 0),
+                    totalLines: total.totalLines + (m.linesAdded || 0) + (m.linesDeleted || 0),
+                    totalErrors: total.totalErrors + (m.errorsEncountered || 0),
+                    totalWarnings: total.totalWarnings + (m.warningsGenerated || 0),
+                    totalTests: total.totalTests + (m.testsRun || 0)
+                };
+            }, { totalFiles: 0, totalLines: 0, totalErrors: 0, totalWarnings: 0, totalTests: 0 });
+        
+        // Update execution stats in header if element exists
+        const statsElement = document.getElementById('execution-stats');
+        if (statsElement) {
+            statsElement.innerHTML = `
+                📄 ${allMetrics.totalFiles} files • 
+                📝 ${allMetrics.totalLines} lines • 
+                🧪 ${allMetrics.totalTests} tests • 
+                ${allMetrics.totalErrors ? `❌ ${allMetrics.totalErrors} errors • ` : ''}
+                ${allMetrics.totalWarnings ? `⚠️ ${allMetrics.totalWarnings} warnings` : ''}
+            `;
+        }
     }
 
     // Activity Management
@@ -871,22 +1530,49 @@ class AgentOpsWorkflow {
         if (!progressList) return;
 
         const selectedTasks = this.taskList.filter(task => task.selected);
-        progressList.innerHTML = selectedTasks.map(task => `
-            <div class="task-progress-item ${task.status || 'pending'}">
-                <div class="task-status-icon">
-                    ${task.status === 'completed' ? '✅' : 
-                      task.status === 'executing' ? '🔄' : 
-                      task.status === 'error' ? '❌' : '⏳'}
+        progressList.innerHTML = selectedTasks.map(task => {
+            const progress = task.progress || 0;
+            const status = task.status || 'pending';
+            const isExecuting = status === 'executing';
+            const metrics = task.metrics || {};
+            
+            return `
+            <div class="task-progress-item ${status}" data-task-id="${task.id}">
+                <div class="task-status-icon ${isExecuting ? 'spinning' : ''}">
+                    ${status === 'completed' ? '✅' : 
+                      status === 'executing' ? '🔄' : 
+                      status === 'error' ? '❌' : '⏳'}
                 </div>
                 <div class="task-info">
                     <h4>${task.title}</h4>
+                    <div class="task-progress-bar">
+                        <div class="progress-fill" style="width: ${progress}%"></div>
+                    </div>
+                    <div class="task-progress-percent">${progress}%</div>
+                    ${this.renderTaskMetrics(metrics, status)}
+                    ${task.error ? `<div class="task-error">Error: ${task.error}</div>` : ''}
+                    ${status === 'completed' && task.completedAt ? 
+                        `<div class="task-completed-time">Completed: ${this.formatTime(task.completedAt)}</div>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
+                <div class="task-info">
+                    <div class="task-header">
+                        <h4>${task.title}</h4>
+                        <span class="task-progress-percent">${progress}%</span>
+                    </div>
                     <p>${task.description}</p>
                     <div class="task-progress-bar">
-                        <div class="progress-fill" style="width: ${task.progress || 0}%"></div>
+                        <div class="progress-fill ${isExecuting ? 'active' : ''}" 
+                             style="width: ${progress}%"></div>
                     </div>
+                    ${status === 'error' ? `<div class="task-error">❌ ${task.error}</div>` : ''}
+                    ${task.completedAt ? `<div class="task-completed-time">Completed: ${new Date(task.completedAt).toLocaleTimeString()}</div>` : ''}
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     renderClaudeInstances() {
@@ -1182,6 +1868,177 @@ class AgentOpsWorkflow {
         }
     }
 
+    // AI Specification Generator
+    openSpecGeneratorModal() {
+        this.showModal('ai-spec-generator-modal');
+    }
+
+    closeSpecGeneratorModal() {
+        this.hideModal('ai-spec-generator-modal');
+        // Clear form
+        document.getElementById('project-idea').value = '';
+        document.getElementById('target-audience').value = '';
+        document.getElementById('tech-preferences').value = '';
+    }
+
+    async generateAISpecification() {
+        const projectIdea = document.getElementById('project-idea').value.trim();
+        const targetAudience = document.getElementById('target-audience').value.trim();
+        const techPreferences = document.getElementById('tech-preferences').value.trim();
+
+        if (!projectIdea) {
+            alert('Please describe your project idea first.');
+            return;
+        }
+
+        // Show generating state
+        document.getElementById('spec-generating').style.display = 'block';
+        document.getElementById('generate-spec-confirm-btn').disabled = true;
+
+        try {
+            // Generate specification using mock AI (for demo purposes)
+            const specification = await this.mockAISpecGeneration(projectIdea, targetAudience, techPreferences);
+            
+            // Fill in the specification textarea
+            document.getElementById('claude-specification').value = specification;
+            
+            // Auto-extract project name
+            const projectName = this.extractProjectNameFromSpec(specification);
+            if (projectName && !document.getElementById('project-name').value) {
+                document.getElementById('project-name').value = projectName;
+            }
+
+            // Close modal and save data
+            this.closeSpecGeneratorModal();
+            this.saveProjectData();
+            
+            // Show success message
+            this.showNotification('✅ Project specification generated successfully!', 'success');
+
+        } catch (error) {
+            console.error('Error generating specification:', error);
+            this.showNotification('❌ Failed to generate specification. Please try again.', 'error');
+        } finally {
+            // Hide generating state
+            document.getElementById('spec-generating').style.display = 'none';
+            document.getElementById('generate-spec-confirm-btn').disabled = false;
+        }
+    }
+
+    async mockAISpecGeneration(idea, audience, tech) {
+        // Simulate API delay
+        await this.delay(2000);
+        
+        const projectName = this.generateProjectName(idea);
+        const techStack = tech || 'HTML, CSS, JavaScript, Node.js';
+        
+        return `# ${projectName}
+
+## Project Overview
+${idea}
+
+This application aims to provide a comprehensive solution for ${audience || 'users'} with an intuitive and modern interface.
+
+## Target Audience
+${audience || 'General users who need this type of solution'}
+
+## Core Features
+- User authentication and profile management
+- Main functionality based on the core idea
+- Responsive web interface
+- Data persistence and management
+- User-friendly dashboard
+- Search and filtering capabilities
+
+## Technical Requirements
+
+### Technology Stack
+${techStack}
+
+### Architecture
+- Frontend: Modern responsive web application
+- Backend: RESTful API with proper data validation
+- Database: Efficient data storage and retrieval
+- Authentication: Secure user management system
+
+## Success Metrics
+- User engagement and retention
+- System performance and reliability
+- Feature adoption rates
+- User satisfaction scores
+
+## Development Timeline
+- Phase 1: Core functionality (2-3 weeks)
+- Phase 2: Advanced features (2-3 weeks)
+- Phase 3: Testing and optimization (1-2 weeks)
+- Phase 4: Deployment and monitoring (1 week)
+
+## Risk Assessment
+- Technical complexity management
+- User experience optimization
+- Performance and scalability considerations
+- Security and data protection compliance
+
+This specification provides a solid foundation for building a robust and user-focused application.`;
+    }
+
+    generateProjectName(idea) {
+        // Simple name generation based on idea keywords
+        const words = idea.toLowerCase().split(' ');
+        const keyWords = words.filter(word => 
+            word.length > 3 && 
+            !['the', 'and', 'for', 'with', 'that', 'this', 'will', 'can', 'have', 'are', 'is'].includes(word)
+        );
+        
+        if (keyWords.length >= 2) {
+            return keyWords.slice(0, 2).map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join('');
+        } else {
+            return 'MyProject';
+        }
+    }
+
+    extractProjectNameFromSpec(specification) {
+        const lines = specification.split('\n');
+        for (const line of lines) {
+            if (line.startsWith('# ')) {
+                return line.substring(2).trim();
+            }
+        }
+        return null;
+    }
+
+    showNotification(message, type = 'info') {
+        // Simple notification system
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            max-width: 300px;
+            background: ${type === 'success' ? '#10B981' : type === 'error' ? '#EF4444' : '#6366F1'};
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateY(-10px)';
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 300);
+        }, 3000);
+    }
+
     // Step 1: Claude Integration Functions
     togglePreview() {
         const previewSection = document.getElementById('spec-preview');
@@ -1331,6 +2188,81 @@ function viewProjectFiles() {
         if (projectPath) {
             agentOps.openFolderSelector();
             agentOps.loadFolderContents(projectPath);
+        }
+    }
+
+    // Helper methods for execution control
+    hasAnalysisTask() {
+        return this.taskList.some(task => 
+            task.title.toLowerCase().includes('analyze') && 
+            task.title.toLowerCase().includes('more tasks')
+        );
+    }
+
+    async addFinalAnalysisTask() {
+        const analysisTask = {
+            id: Date.now(),
+            title: "Analyze Project for Additional Tasks",
+            description: "Review the current project state and identify any remaining improvements, optimizations, or features that could be added.",
+            priority: "medium",
+            estimatedTime: "5 min",
+            selected: true,
+            completed: false,
+            status: "pending",
+            progress: 0
+        };
+        
+        this.taskList.push(analysisTask);
+        this.renderTaskProgress();
+        
+        // Continue execution with the new task
+        setTimeout(() => {
+            this.executeNextTask();
+        }, 500);
+    }
+
+    setPauseAfterNextTask() {
+        this.pauseAfterNextTask = true;
+        this.showNotification('Execution will pause after the next completed task', 'info');
+    }
+
+    setStopAfterNextTask() {
+        this.stopAfterNextTask = true;
+        this.showNotification('Execution will stop after the next completed task', 'info');
+    }
+
+    showGitCommitOption() {
+        // Show git commit modal/option
+        const shouldCommit = confirm('Task completed. Would you like to commit the changes to git?');
+        if (shouldCommit) {
+            this.commitChangesToGit();
+        }
+    }
+
+    async commitChangesToGit() {
+        try {
+            const commitMessage = prompt('Enter commit message:', 'Update: Task completion via AgentOps');
+            if (!commitMessage) return;
+
+            // Send git commit request to backend
+            const response = await fetch('/api/v1/git/commit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: commitMessage,
+                    projectPath: this.projectData.selectedFolder || process.cwd()
+                })
+            });
+
+            if (response.ok) {
+                this.showNotification('✅ Changes committed to git successfully', 'success');
+            } else {
+                const error = await response.json();
+                this.showNotification(`❌ Git commit failed: ${error.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('Git commit error:', error);
+            this.showNotification('❌ Git commit failed', 'error');
         }
     }
 }

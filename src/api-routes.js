@@ -31,6 +31,7 @@ function configureApiRoutes(app) {
     app.get('/api/v1/claude-code/status', getClaudeCodeStatus);
     app.get('/api/v1/claude-code/detect', detectClaudeCode);
     app.post('/api/v1/claude-code/test', testClaudeCodeConnection);
+    app.post('/api/v1/claude-code/generate-tasks', generateTasksWithClaudeCode);
 
     // File monitoring routes
     app.get('/api/v1/monitoring/status', getMonitoringStatus);
@@ -46,6 +47,9 @@ function configureApiRoutes(app) {
     // File system browsing routes
     app.get('/api/v1/filesystem/browse', browseFolders);
     app.post('/api/v1/filesystem/analyze', analyzeProject);
+
+    // Git operations routes
+    app.post('/api/v1/git/commit', commitChangesToGit);
 }
 
 // Claude Code Instance Management Handlers
@@ -568,11 +572,214 @@ function findClaudeCodeExecutable() {
     return null;
 }
 
+/**
+ * Generate development tasks using Claude Code AI
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ */
+async function generateTasksWithClaudeCode(req, res) {
+    try {
+        const { prompt, projectContext } = req.body;
+        
+        if (!prompt) {
+            return res.status(400).json({ error: 'Prompt is required' });
+        }
+        
+        // Check if Claude Code is available
+        const claudePath = await findClaudeCodePath();
+        if (!claudePath) {
+            return res.status(503).json({ 
+                error: 'Claude Code not found. Please install Claude Code CLI first.',
+                fallback: true
+            });
+        }
+        
+        // Create a temporary Claude Code instance for task generation
+        const instanceId = `task-gen-${Date.now()}`;
+        const workingDir = projectContext?.projectPath || process.cwd();
+        
+        try {
+            // Spawn Claude Code process
+            const claudeProcess = spawn(claudePath, {
+                cwd: workingDir,
+                stdio: ['pipe', 'pipe', 'pipe'],
+                env: { ...process.env }
+            });
+            
+            let output = '';
+            let errorOutput = '';
+            
+            // Collect output
+            claudeProcess.stdout.on('data', (data) => {
+                output += data.toString();
+            });
+            
+            claudeProcess.stderr.on('data', (data) => {
+                errorOutput += data.toString();
+            });
+            
+            // Send the task generation prompt
+            claudeProcess.stdin.write(prompt + '\n');
+            claudeProcess.stdin.end();
+            
+            // Wait for process to complete
+            await new Promise((resolve, reject) => {
+                claudeProcess.on('close', (code) => {
+                    if (code === 0) {
+                        resolve();
+                    } else {
+                        reject(new Error(`Claude Code exited with code ${code}: ${errorOutput}`));
+                    }
+                });
+                
+                claudeProcess.on('error', (error) => {
+                    reject(error);
+                });
+                
+                // Timeout after 30 seconds
+                setTimeout(() => {
+                    claudeProcess.kill();
+                    reject(new Error('Claude Code task generation timed out'));
+                }, 30000);
+            });
+            
+            // Parse the AI response to extract JSON tasks
+            const tasks = extractTasksFromAIResponse(output);
+            
+            res.json({
+                success: true,
+                tasks: tasks,
+                projectContext: projectContext,
+                generatedAt: new Date().toISOString()
+            });
+            
+        } catch (processError) {
+            console.error('Claude Code process error:', processError);
+            res.status(500).json({
+                error: 'Failed to generate tasks with Claude Code',
+                details: processError.message,
+                fallback: true
+            });
+        }
+        
+    } catch (error) {
+        console.error('Task generation error:', error);
+        res.status(500).json({
+            error: 'Internal server error during task generation',
+            details: error.message,
+            fallback: true
+        });
+    }
+}
+
+/**
+ * Extract JSON tasks from AI response text
+ * @param {string} aiOutput - Raw output from Claude Code
+ * @returns {Array} Parsed tasks array
+ */
+function extractTasksFromAIResponse(aiOutput) {
+    try {
+        // Look for JSON array in the output
+        const jsonMatch = aiOutput.match(/\[\s*{[\s\S]*}\s*\]/);
+        if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]);
+        }
+        
+        // Fallback: try to parse the entire output as JSON
+        const cleaned = aiOutput.trim();
+        if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+            return JSON.parse(cleaned);
+        }
+        
+        // If no valid JSON found, return empty array
+        console.warn('No valid JSON tasks found in AI output:', aiOutput);
+        return [];
+        
+    } catch (parseError) {
+        console.error('Failed to parse AI task response:', parseError);
+        return [];
+    }
+}
+
+/**
+ * Commit changes to git repository
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ */
+function commitChangesToGit(req, res) {
+    try {
+        const { message, projectPath } = req.body;
+        
+        if (!message) {
+            return res.status(400).json({ error: 'Commit message is required' });
+        }
+        
+        const workingDir = projectPath || process.cwd();
+        
+        // Check if directory is a git repository
+        if (!fs.existsSync(path.join(workingDir, '.git'))) {
+            return res.status(400).json({ error: 'Directory is not a git repository' });
+        }
+        
+        // Execute git add and commit
+        const { execSync } = require('child_process');
+        
+        try {
+            // Add all changes
+            execSync('git add .', { cwd: workingDir, stdio: 'pipe' });
+            
+            // Commit with provided message
+            const commitOutput = execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, {
+                cwd: workingDir,
+                stdio: 'pipe',
+                encoding: 'utf8'
+            });
+            
+            // Get latest commit info
+            const commitHash = execSync('git rev-parse HEAD', {
+                cwd: workingDir,
+                stdio: 'pipe',
+                encoding: 'utf8'
+            }).trim();
+            
+            res.json({
+                success: true,
+                message: 'Changes committed successfully',
+                commitHash: commitHash.substring(0, 7),
+                commitMessage: message,
+                output: commitOutput.trim()
+            });
+            
+        } catch (gitError) {
+            // Handle case where there are no changes to commit
+            if (gitError.message.includes('nothing to commit')) {
+                res.json({
+                    success: true,
+                    message: 'No changes to commit',
+                    noChanges: true
+                });
+            } else {
+                res.status(500).json({
+                    error: 'Git commit failed',
+                    details: gitError.message
+                });
+            }
+        }
+        
+    } catch (error) {
+        res.status(500).json({
+            error: 'Failed to commit changes',
+            details: error.message
+        });
+    }
+}
+
 module.exports = {
     configureApiRoutes,
     // Export individual handlers for testing
     getInstances,
     createInstance,
+    generateTasksWithClaudeCode,
     terminateInstance,
     sendInstanceInput,
     getClaudeCodeStatus,
@@ -586,5 +793,6 @@ module.exports = {
     searchActivities,
     clearActivities,
     browseFolders,
-    analyzeProject
+    analyzeProject,
+    commitChangesToGit
 };
