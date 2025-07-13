@@ -20,6 +20,7 @@ class AgentOpsWorkflow {
         this.pauseAfterNextTask = false;
         this.stopAfterNextTask = false;
         this.codeAnalysisComplete = false;
+        this.hasGeneratedTasks = false; // Track if tasks have been generated for this project
         
         this.init();
     }
@@ -79,10 +80,7 @@ class AgentOpsWorkflow {
         document.getElementById('regenerate-tasks-btn').addEventListener('click', () => this.regenerateTasks());
 
         // Execution controls
-        document.getElementById('pause-execution-btn').addEventListener('click', () => this.pauseExecution());
         document.getElementById('stop-execution-btn').addEventListener('click', () => this.stopExecution());
-        document.getElementById('resume-execution-btn').addEventListener('click', () => this.resumeExecution());
-        document.getElementById('pause-after-next-btn').addEventListener('click', () => this.setPauseAfterNextTask());
         document.getElementById('stop-after-next-btn').addEventListener('click', () => this.setStopAfterNextTask());
 
         // Modal controls
@@ -239,6 +237,20 @@ class AgentOpsWorkflow {
             case 'processOutput':
                 this.handleProcessOutput(message.data);
                 break;
+            case 'response':
+                // Handle generic response messages
+                if (message.data && message.data.success === false) {
+                    console.error('Server response error:', message.data.error);
+                } else {
+                    console.log('Server response:', message.data);
+                }
+                break;
+            case 'monitoringStarted':
+                console.log('File monitoring started for:', message.data.path);
+                break;
+            case 'monitoringStopped':
+                console.log('File monitoring stopped');
+                break;
             default:
                 console.log('Unknown message type:', message.type);
         }
@@ -392,6 +404,9 @@ class AgentOpsWorkflow {
         this.projectType = type;
         this.projectData.type = type;
         this.isExistingProject = (type === 'existing');
+        
+        // Reset task generation flag when changing project type
+        this.hasGeneratedTasks = false;
         
         const newSection = document.getElementById('new-project-section');
         const existingSection = document.getElementById('existing-project-section');
@@ -557,6 +572,9 @@ class AgentOpsWorkflow {
     selectCurrentFolder() {
         const currentPath = document.getElementById('current-path').textContent;
         
+        // Reset task generation flag when selecting a new project folder
+        this.hasGeneratedTasks = false;
+        
         if (this.isSelectingExistingProject) {
             document.getElementById('existing-project-path').value = currentPath;
             this.isSelectingExistingProject = false;
@@ -602,6 +620,9 @@ class AgentOpsWorkflow {
 
     // Step 3: Task Identification
     async generateTasks() {
+        // Determine if this is a new project (first time generating tasks)
+        const isNewProject = !this.hasGeneratedTasks;
+        
         document.getElementById('task-loading').style.display = 'block';
         document.getElementById('identified-tasks').style.display = 'none';
 
@@ -618,24 +639,28 @@ class AgentOpsWorkflow {
         
         await this.delay(500);
         
-        // Step 2: Prepare AI prompt
+        // Step 2: Generate architecture visualization
+        await this.updateProgress('architecture', 'Generating project architecture and design overview...');
+        this.projectArchitecture = await this.generateArchitectureAnalysis();
+        await this.delay(800);
+        
+        // Step 3: Prepare AI prompt
         await this.updateProgress('identify', 'Preparing AI analysis with project details...');
         await this.delay(300);
         
         try {
-            // Step 3: Generate tasks with AI
+            // Step 4: Generate tasks with AI
             await this.updateProgress('generate', 'Generating intelligent tasks with Claude Code...');
-            const tasks = await this.generateIntelligentTasks();
+            const tasks = await this.generateIntelligentTasks(isNewProject);
             await this.delay(200);
             
-            // Step 4: Process and prioritize
-            await this.updateProgress('prioritize', 'Processing AI recommendations and prioritizing...');
-            this.taskList = tasks; // Tasks are already prioritized by AI
+            // Step 5: Process and prioritize with architecture mapping
+            await this.updateProgress('prioritize', 'Processing AI recommendations and mapping to architecture...');
+            this.taskList = this.mapTasksToArchitecture(tasks);
             await this.delay(400);
             
-            // Show final summary
-            this.showTaskSummary();
-            await this.delay(800);
+            // Mark that we have generated tasks for this project
+            this.hasGeneratedTasks = true;
             
             // Complete and show results
             this.completeAllProgressSteps();
@@ -672,7 +697,7 @@ class AgentOpsWorkflow {
 
     async updateProgress(stepId, statusText) {
         // Mark previous steps as completed
-        const stepIds = ['analyze', 'identify', 'generate', 'prioritize'];
+        const stepIds = ['analyze', 'architecture', 'identify', 'generate', 'prioritize'];
         const currentIndex = stepIds.indexOf(stepId);
         
         stepIds.forEach((id, index) => {
@@ -732,10 +757,10 @@ class AgentOpsWorkflow {
         }
     }
 
-    async generateIntelligentTasks() {
+    async generateIntelligentTasks(isNewProject = false) {
         try {
             // Use the selected AI agent to generate real tasks
-            const tasks = await this.generateTasksWithAI();
+            const tasks = await this.generateTasksWithAI(isNewProject);
             return this.prioritizeAndEstimateTasks(tasks);
         } catch (error) {
             console.error('Failed to generate tasks with AI:', error);
@@ -743,12 +768,19 @@ class AgentOpsWorkflow {
         }
     }
 
-    async generateTasksWithAI() {
+    async generateTasksWithAI(isNewProject = false) {
         const projectContext = this.buildProjectContext();
         const aiPrompt = this.buildTaskGenerationPrompt(projectContext);
         
+        // Add session control to project context
+        projectContext.isNewProject = isNewProject;
+        
         try {
             // Send request to Claude Code instance to generate tasks
+            // Claude CLI can take 20-60 seconds, so use longer timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 70000); // 70 seconds
+            
             const response = await fetch('/api/v1/claude-code/generate-tasks', {
                 method: 'POST',
                 headers: {
@@ -757,8 +789,11 @@ class AgentOpsWorkflow {
                 body: JSON.stringify({
                     prompt: aiPrompt,
                     projectContext: projectContext
-                })
+                }),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -767,6 +802,10 @@ class AgentOpsWorkflow {
             const data = await response.json();
             return this.parseAITaskResponse(data.tasks);
         } catch (error) {
+            if (error.name === 'AbortError') {
+                console.error('Task generation timed out after 70 seconds');
+                throw new Error('Task generation timed out. Claude CLI took too long to respond.');
+            }
             console.error('AI task generation failed:', error);
             throw error;
         }
@@ -785,14 +824,16 @@ class AgentOpsWorkflow {
     buildProjectContext() {
         const context = {
             projectType: this.isExistingProject ? 'existing' : 'new',
+            isExisting: this.isExistingProject,
             projectPath: this.projectData.path || null,
             projectName: this.projectData.name || 'Untitled Project',
             specification: this.projectData.specification || null,
-            technologies: this.projectAnalysis?.technologies || [],
-            fileStructure: this.projectAnalysis?.structure || null,
-            hasTests: this.projectAnalysis?.hasTests || false,
-            hasDocumentation: this.projectAnalysis?.hasReadme || false,
-            packageJson: this.projectAnalysis?.packageInfo || null
+            technologies: this.projectAnalysis && this.projectAnalysis.technologies || [],
+            fileStructure: this.projectAnalysis && this.projectAnalysis.structure || null,
+            hasTests: this.projectAnalysis && this.projectAnalysis.hasTests || false,
+            hasDocumentation: this.projectAnalysis && this.projectAnalysis.hasReadme || false,
+            packageJson: this.projectAnalysis && this.projectAnalysis.packageInfo || null,
+            claudePath: this.settings.claudePath || '/opt/homebrew/bin/claude'
         };
         
         return context;
@@ -977,6 +1018,7 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
                 <p class="task-description">${task.description}</p>
                 <div class="task-meta">
                     <span class="task-estimate">📅 ${task.estimated}</span>
+                    ${task.architectureArea ? `<span class="task-architecture">🏗️ ${task.architectureArea}</span>` : ''}
                 </div>
             </div>
         `).join('');
@@ -1025,6 +1067,8 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
     }
 
     regenerateTasks() {
+        // Reset task generation flag to allow regeneration
+        this.hasGeneratedTasks = false;
         this.generateTasks();
     }
 
@@ -1134,41 +1178,52 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
     // Step 5: Execution
     setupExecutionView() {
         this.renderTaskProgress();
+        this.renderArchitectureDiagram(); // Add architecture diagram to execution view
         this.renderClaudeInstances();
         this.renderLiveActivities();
     }
 
     async startExecution() {
         this.isExecuting = true;
-        this.isPaused = false;
         
-        document.getElementById('pause-execution-btn').disabled = false;
         document.getElementById('stop-execution-btn').disabled = false;
         document.getElementById('start-execution-btn').disabled = true;
 
-        // Start Claude Code instances based on settings
+        // Calculate optimal number of instances based on tasks and settings
         const maxInstances = parseInt(document.getElementById('claude-instance-limit').value);
         const executionMode = document.getElementById('execution-mode').value;
+        const selectedTasks = this.taskList.filter(task => task.selected && !task.completed);
+        
+        // Don't launch more instances than we have tasks
+        const optimalInstances = Math.min(maxInstances, selectedTasks.length);
+        
+        console.log(`Starting execution with ${optimalInstances} instances (max: ${maxInstances}, tasks: ${selectedTasks.length}) in ${executionMode} mode`);
 
-        console.log(`Starting execution with ${maxInstances} instances in ${executionMode} mode`);
+        // Create the optimal number of Claude instances
+        await this.createClaudeInstances(optimalInstances);
 
         // Begin task execution
         await this.executeNextTask();
     }
 
     async executeNextTask() {
-        if (!this.isExecuting || this.isPaused) return;
+        if (!this.isExecuting) return;
 
         const pendingTasks = this.taskList.filter(task => task.selected && !task.completed);
         if (pendingTasks.length === 0) {
             this.showNotification('🎉 All tasks completed successfully!', 'success');
             this.showCompletionUI();
-            this.completeExecution();
+            await this.completeExecution();
             return;
         }
 
         const nextTask = pendingTasks[0];
         nextTask.status = 'executing';
+        
+        // Highlight the architecture area this task affects
+        if (nextTask.architectureArea) {
+            this.highlightArchitectureArea(nextTask.architectureArea);
+        }
         nextTask.progress = 0;
         
         this.currentExecutingTask = nextTask;
@@ -1209,7 +1264,9 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
             this.renderTaskProgress();
             
             if (executionMode === 'semi-auto') {
-                this.pauseExecution();
+                // Semi-auto mode pauses after each task for user confirmation
+                // For simplicity, we'll just show a notification instead
+                this.showNotification('Task completed. Click "Continue" to proceed to next task.', 'info');
             }
         }
     }
@@ -1243,82 +1300,67 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
         };
         
         const startTime = Date.now();
-        const steps = this.getTaskExecutionSteps(task);
         
-        for (let i = 0; i < steps.length; i++) {
-            if (!this.isExecuting || this.isPaused) break;
+        try {
+            // Execute task with real Claude CLI
+            const result = await this.executeTaskWithClaudeCLI(task);
             
-            const step = steps[i];
-            task.progress = Math.round(((i + 1) / steps.length) * 100);
-            
-            // Generate realistic metrics for this step
-            const stepMetrics = this.generateStepMetrics(step, task);
-            this.updateTaskMetrics(task, stepMetrics);
+            // Update task with execution results
+            task.status = result.success ? 'completed' : 'failed';
+            task.completed = result.success;
+            task.progress = 100;
+            task.completedAt = Date.now();
+            task.metrics = this.mergeTaskMetrics(task.metrics, result.executionResult);
+            task.executionResult = result.executionResult;
             
             this.addActivity({
-                type: 'command',
+                type: result.success ? 'completion' : 'error',
                 timestamp: Date.now(),
                 parsedContent: {
-                    summary: step.description,
-                    details: this.formatStepDetails(stepMetrics)
+                    summary: result.success ? `✅ Completed: ${task.title}` : `❌ Failed: ${task.title}`,
+                    details: this.formatExecutionResult(result.executionResult),
+                    architectureArea: task.architectureArea || 'General'
                 },
-                importance: 6,
-                metrics: stepMetrics
+                importance: result.success ? 7 : 9,
+                metrics: task.metrics
             });
             
+            // Update architecture visualization during execution
+            this.highlightArchitectureArea(task.architectureArea);
+            
+            // Update architecture statistics based on task results
+            if (task.architectureArea && result.executionResult) {
+                this.updateArchitectureStatistics(task.architectureArea, result.executionResult);
+                // Refresh the architecture diagram display
+                this.updateArchitectureStatsDisplay(task.architectureArea);
+            }
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Task execution failed');
+            }
+            
+        } catch (error) {
+            console.error('Task execution failed:', error);
+            task.status = 'failed';
+            task.error = error.message;
+            task.metrics.errorsEncountered++;
+            
+            this.addActivity({
+                type: 'error',
+                timestamp: Date.now(),
+                parsedContent: {
+                    summary: `❌ Failed: ${task.title}`,
+                    details: error.message
+                },
+                importance: 9,
+                error: error.message
+            });
+            
+            throw error;
+        } finally {
+            task.metrics.duration = Date.now() - startTime;
             this.renderTaskProgress();
             this.updateExecutionMetrics();
-            
-            // Simulate step execution time
-            await this.delay(step.duration || 1000);
-            
-            // Simulate potential errors with detailed error info
-            if (step.errorChance && Math.random() < step.errorChance) {
-                const error = this.generateStepError(step);
-                task.metrics.errorsEncountered++;
-                
-                this.addActivity({
-                    type: 'error',
-                    timestamp: Date.now(),
-                    parsedContent: {
-                        summary: `❌ Error in ${step.description}`,
-                        details: error.details
-                    },
-                    importance: 9,
-                    error: error
-                });
-                
-                throw new Error(`Step failed: ${step.description} - ${error.message}`);
-            }
-        }
-        
-        // Calculate final metrics
-        task.metrics.duration = Date.now() - startTime;
-        task.status = 'completed';
-        task.completed = true;
-        task.progress = 100;
-        task.completedAt = Date.now();
-        
-        this.addActivity({
-            type: 'completion',
-            timestamp: Date.now(),
-            parsedContent: {
-                summary: `✅ Completed: ${task.title}`,
-                details: this.formatTaskSummary(task.metrics)
-            },
-            importance: 7,
-            metrics: task.metrics
-        });
-        
-        this.renderTaskProgress();
-        this.updateExecutionMetrics();
-        
-        // Check if user wants to pause after this task
-        if (this.pauseAfterNextTask) {
-            this.pauseAfterNextTask = false;
-            this.pauseExecution();
-            this.showGitCommitOption();
-            return;
         }
         
         // Check if user wants to stop after this task
@@ -1329,10 +1371,627 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
             return;
         }
         
+        // Clear architecture highlighting after task completion
+        setTimeout(() => {
+            this.clearArchitectureHighlighting();
+        }, 2000);
+        
         // Continue with next task after a brief delay
         setTimeout(() => {
             this.executeNextTask();
         }, 1000);
+    }
+
+    async executeTaskWithClaudeCLI(task) {
+        try {
+            // Build project context
+            const projectContext = {
+                projectPath: this.projectData.path || this.getDefaultProjectPath(),
+                projectName: this.projectData.name || 'Unknown Project',
+                isExisting: this.isExistingProject,
+                claudePath: this.settings.claudePath || '/opt/homebrew/bin/claude'
+            };
+            
+            // Send task execution request to backend
+            // Task execution can take up to 5 minutes, use longer timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 330000); // 5.5 minutes
+            
+            const response = await fetch('/api/v1/claude-code/execute-task', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    task: task,
+                    projectContext: projectContext,
+                    executionOptions: {
+                        timeout: 300000, // 5 minutes
+                        model: 'sonnet'
+                    }
+                }),
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            return result;
+            
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.error('Task execution timed out after 5.5 minutes');
+                throw new Error('Task execution timed out. The task is taking too long to complete.');
+            }
+            console.error('Claude CLI task execution failed:', error);
+            throw error;
+        }
+    }
+
+    mergeTaskMetrics(existingMetrics, executionResult) {
+        return {
+            ...existingMetrics,
+            filesCreated: executionResult.filesCreated?.length || 0,
+            filesModified: executionResult.filesModified?.length || 0,
+            commands: executionResult.commandsRun || [],
+            errorsEncountered: executionResult.errorsEncountered?.length || 0,
+            warningsGenerated: executionResult.warnings?.length || 0,
+            testsRun: executionResult.testsRun || 0,
+            testsPassed: executionResult.testsPassed || 0,
+            duration: executionResult.duration || 0
+        };
+    }
+
+    formatExecutionResult(executionResult) {
+        if (!executionResult) return 'No execution details available';
+        
+        const details = [];
+        
+        if (executionResult.filesCreated?.length > 0) {
+            details.push(`📁 Created: ${executionResult.filesCreated.join(', ')}`);
+        }
+        
+        if (executionResult.filesModified?.length > 0) {
+            details.push(`✏️ Modified: ${executionResult.filesModified.join(', ')}`);
+        }
+        
+        if (executionResult.commandsRun?.length > 0) {
+            details.push(`⚡ Commands: ${executionResult.commandsRun.join(', ')}`);
+        }
+        
+        if (executionResult.testsRun > 0) {
+            details.push(`🧪 Tests: ${executionResult.testsPassed}/${executionResult.testsRun} passed`);
+        }
+        
+        if (executionResult.errorsEncountered?.length > 0) {
+            details.push(`❌ Errors: ${executionResult.errorsEncountered.join(', ')}`);
+        }
+        
+        if (executionResult.warnings?.length > 0) {
+            details.push(`⚠️ Warnings: ${executionResult.warnings.join(', ')}`);
+        }
+        
+        if (executionResult.duration) {
+            details.push(`⏱️ Duration: ${Math.round(executionResult.duration / 1000)}s`);
+        }
+        
+        return details.length > 0 ? details.join('\n') : 'Task completed successfully';
+    }
+
+    // Architecture Analysis Methods
+    async generateArchitectureAnalysis() {
+        try {
+            const projectContext = this.buildProjectContext();
+            
+            // Generate architecture analysis using Claude CLI
+            // Architecture generation can take up to 60 seconds, use longer timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 70000); // 70 seconds
+            
+            const response = await fetch('/api/v1/claude-code/generate-architecture', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    projectContext: projectContext
+                }),
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            const data = await response.json();
+            
+            // Return architecture whether successful or not (API provides fallback)
+            return data.architecture || this.generateFallbackArchitecture();
+            
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.error('Architecture generation timed out after 70 seconds');
+            } else {
+                console.error('Architecture analysis failed:', error);
+            }
+            // Return fallback architecture
+            return this.generateFallbackArchitecture();
+        }
+    }
+
+    generateFallbackArchitecture() {
+        const isExisting = this.isExistingProject;
+        const projectName = this.projectData.name || 'Project';
+        
+        if (isExisting) {
+            return {
+                layers: [
+                    { 
+                        name: 'Frontend/UI Layer', 
+                        description: 'User interface components and presentation logic',
+                        components: ['Views', 'Components', 'Styles', 'Assets'],
+                        color: '#6366F1'
+                    },
+                    { 
+                        name: 'Business Logic Layer', 
+                        description: 'Core application logic and data processing',
+                        components: ['Services', 'Controllers', 'Utils', 'Helpers'],
+                        color: '#10B981'
+                    },
+                    { 
+                        name: 'Data Layer', 
+                        description: 'Data storage, models, and database interactions',
+                        components: ['Models', 'Database', 'APIs', 'Storage'],
+                        color: '#F59E0B'
+                    },
+                    { 
+                        name: 'Infrastructure Layer', 
+                        description: 'Configuration, build tools, and deployment',
+                        components: ['Config', 'Build', 'Tests', 'Documentation'],
+                        color: '#EF4444'
+                    }
+                ],
+                overview: `${projectName} follows a layered architecture pattern with clear separation of concerns between presentation, business logic, data management, and infrastructure.`
+            };
+        } else {
+            return {
+                layers: [
+                    { 
+                        name: 'Core Setup', 
+                        description: 'Project initialization and basic structure',
+                        components: ['Package.json', 'Dependencies', 'Entry Points'],
+                        color: '#6366F1'
+                    },
+                    { 
+                        name: 'Application Framework', 
+                        description: 'Main application structure and routing',
+                        components: ['App Structure', 'Routing', 'Middleware'],
+                        color: '#10B981'
+                    },
+                    { 
+                        name: 'Features & Components', 
+                        description: 'Core functionality and user-facing features',
+                        components: ['Features', 'Components', 'Services'],
+                        color: '#F59E0B'
+                    },
+                    { 
+                        name: 'Development Tools', 
+                        description: 'Testing, building, and development workflow',
+                        components: ['Tests', 'Build Tools', 'Documentation'],
+                        color: '#EF4444'
+                    }
+                ],
+                overview: `${projectName} will be built with a modular architecture emphasizing maintainability, testability, and clear separation between core functionality and supporting infrastructure.`
+            };
+        }
+    }
+
+    mapTasksToArchitecture(tasks) {
+        if (!this.projectArchitecture || !this.projectArchitecture.layers) {
+            return tasks;
+        }
+        
+        return tasks.map(task => {
+            // Determine which architecture layer this task affects
+            const architectureArea = this.determineArchitectureArea(task);
+            return {
+                ...task,
+                architectureArea: architectureArea
+            };
+        });
+    }
+
+    determineArchitectureArea(task) {
+        const title = task.title.toLowerCase();
+        const description = task.description.toLowerCase();
+        const combined = `${title} ${description}`;
+        
+        // Map task keywords to architecture layers
+        const layerMappings = [
+            {
+                keywords: ['ui', 'frontend', 'component', 'view', 'style', 'css', 'html', 'design', 'interface', 'user'],
+                layer: 'Frontend/UI Layer'
+            },
+            {
+                keywords: ['business', 'logic', 'service', 'controller', 'algorithm', 'processing', 'core', 'feature'],
+                layer: 'Business Logic Layer'
+            },
+            {
+                keywords: ['data', 'database', 'model', 'api', 'storage', 'query', 'schema', 'migration'],
+                layer: 'Data Layer'
+            },
+            {
+                keywords: ['config', 'build', 'deploy', 'test', 'ci', 'cd', 'documentation', 'setup', 'infrastructure'],
+                layer: 'Infrastructure Layer'
+            },
+            {
+                keywords: ['setup', 'init', 'package', 'dependency', 'framework', 'structure'],
+                layer: 'Core Setup'
+            },
+            {
+                keywords: ['app', 'application', 'routing', 'middleware', 'framework'],
+                layer: 'Application Framework'
+            },
+            {
+                keywords: ['feature', 'component', 'functionality', 'service', 'module'],
+                layer: 'Features & Components'
+            },
+            {
+                keywords: ['test', 'build', 'tool', 'development', 'workflow', 'documentation'],
+                layer: 'Development Tools'
+            }
+        ];
+        
+        // Find the best matching layer
+        let bestMatch = { layer: 'General', score: 0 };
+        
+        layerMappings.forEach(mapping => {
+            const score = mapping.keywords.reduce((count, keyword) => {
+                return count + (combined.includes(keyword) ? 1 : 0);
+            }, 0);
+            
+            if (score > bestMatch.score) {
+                bestMatch = { layer: mapping.layer, score: score };
+            }
+        });
+        
+        return bestMatch.layer;
+    }
+
+    highlightArchitectureArea(architectureArea) {
+        if (!architectureArea || !this.projectArchitecture) return;
+        
+        // Find the layer that matches the architecture area
+        const layer = this.projectArchitecture.layers.find(l => l.name === architectureArea);
+        if (!layer) return;
+        
+        // Create or update architecture highlight in the activity feed
+        this.showArchitectureHighlight(layer);
+    }
+
+    showArchitectureHighlight(layer) {
+        // Add a visual indicator in the activity feed showing which architecture area is being worked on
+        this.addActivity({
+            type: 'architecture',
+            timestamp: Date.now(),
+            parsedContent: {
+                summary: `🏗️ Working on: ${layer.name}`,
+                details: `${layer.description}\nComponents: ${layer.components.join(', ')}`
+            },
+            importance: 5,
+            architectureLayer: layer
+        });
+        
+        // Also update the visual architecture diagram
+        this.updateArchitectureDiagram(layer.name, 'working');
+    }
+
+    renderArchitectureDiagram() {
+        if (!this.projectArchitecture || !this.projectArchitecture.layers) {
+            this.renderFallbackArchitecture();
+            return;
+        }
+
+        const diagramContainer = document.getElementById('architecture-diagram');
+        if (!diagramContainer) return;
+
+        // Initialize architecture statistics
+        if (!this.architectureStats) {
+            this.initializeArchitectureStats();
+            // Load real project statistics
+            this.loadRealArchitectureStats();
+        }
+
+        const layers = this.projectArchitecture.layers;
+        
+        diagramContainer.innerHTML = `
+            <div class="architecture-layers">
+                ${layers.map(layer => this.renderArchitectureLayer(layer)).join('')}
+            </div>
+            <div class="architecture-legend">
+                <div class="legend-item">
+                    <div class="legend-indicator" style="background: var(--primary);"></div>
+                    <span>Selected Task</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-indicator" style="background: var(--accent);"></div>
+                    <span>Currently Working</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-indicator" style="background: var(--border);"></div>
+                    <span>Inactive</span>
+                </div>
+            </div>
+        `;
+    }
+
+    renderArchitectureLayer(layer) {
+        const stats = this.architectureStats[layer.name] || { files: 0, edits: 0, tests: 0 };
+        
+        return `
+            <div class="architecture-layer" data-layer="${layer.name}">
+                <div class="layer-header">
+                    <div class="layer-title">
+                        <div class="layer-color-indicator" style="background: ${layer.color};"></div>
+                        <span>${layer.name}</span>
+                    </div>
+                    <div class="layer-stats">
+                        <div class="layer-stat">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14,2 14,8 20,8"/>
+                            </svg>
+                            <span class="layer-stat-value">${stats.files}</span>
+                            <span>files</span>
+                        </div>
+                        <div class="layer-stat">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                            </svg>
+                            <span class="layer-stat-value">${stats.edits}</span>
+                            <span>edits</span>
+                        </div>
+                        <div class="layer-stat">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9,11 12,14 22,4"/>
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                            </svg>
+                            <span class="layer-stat-value">${stats.tests}</span>
+                            <span>tests</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="layer-description">${layer.description}</div>
+                <div class="layer-components">
+                    ${layer.components.map(component => 
+                        `<div class="layer-component" data-component="${component}">${component}</div>`
+                    ).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    initializeArchitectureStats() {
+        this.architectureStats = {};
+        
+        if (this.projectArchitecture && this.projectArchitecture.layers) {
+            this.projectArchitecture.layers.forEach(layer => {
+                this.architectureStats[layer.name] = {
+                    files: 0, // Start with zero - will be updated by real task execution
+                    edits: 0,
+                    tests: 0
+                };
+            });
+        }
+    }
+
+    // Add method to analyze real project files for initial stats
+    async loadRealArchitectureStats() {
+        if (!this.projectData.path || !this.projectArchitecture?.layers) return;
+
+        try {
+            const response = await fetch('/api/v1/filesystem/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    projectPath: this.projectData.path,
+                    includeStats: true 
+                })
+            });
+
+            if (response.ok) {
+                const analysis = await response.json();
+                this.updateStatsFromAnalysis(analysis);
+            }
+        } catch (error) {
+            console.warn('Could not load real architecture stats:', error);
+        }
+    }
+
+    updateStatsFromAnalysis(analysis) {
+        // Map file types to architecture layers and count real files
+        if (!analysis.filesByType) return;
+
+        this.projectArchitecture.layers.forEach(layer => {
+            let fileCount = 0;
+            
+            // Map layer names to file types
+            switch (layer.name.toLowerCase()) {
+                case 'frontend/ui layer':
+                case 'presentation layer':
+                case 'presentation':
+                    fileCount = (analysis.filesByType.html || 0) + 
+                               (analysis.filesByType.css || 0) + 
+                               (analysis.filesByType.js || 0) + 
+                               (analysis.filesByType.tsx || 0) + 
+                               (analysis.filesByType.jsx || 0);
+                    break;
+                case 'business logic layer':
+                case 'application layer':
+                case 'application':
+                    fileCount = (analysis.filesByType.js || 0) + 
+                               (analysis.filesByType.ts || 0) + 
+                               (analysis.filesByType.py || 0);
+                    break;
+                case 'data layer':
+                case 'domain layer':
+                    fileCount = (analysis.filesByType.sql || 0) + 
+                               (analysis.filesByType.json || 0) + 
+                               (analysis.filesByType.db || 0);
+                    break;
+                case 'infrastructure layer':
+                    fileCount = (analysis.filesByType.yml || 0) + 
+                               (analysis.filesByType.yaml || 0) + 
+                               (analysis.filesByType.dockerfile || 0) + 
+                               (analysis.filesByType.config || 0);
+                    break;
+                default:
+                    fileCount = Math.floor((analysis.totalFiles || 0) / this.projectArchitecture.layers.length);
+            }
+            
+            this.architectureStats[layer.name] = {
+                files: fileCount,
+                edits: 0, // Will be updated during task execution
+                tests: analysis.testFiles || 0
+            };
+        });
+        
+        // Refresh the display
+        this.renderArchitectureDiagram();
+    }
+
+    updateArchitectureDiagram(layerName, status = 'active') {
+        const layerElement = document.querySelector(`[data-layer="${layerName}"]`);
+        if (!layerElement) return;
+
+        // Clear previous states
+        document.querySelectorAll('.architecture-layer').forEach(el => {
+            el.classList.remove('active', 'working');
+        });
+
+        // Add new state
+        layerElement.classList.add(status);
+
+        // If working, also highlight relevant components
+        if (status === 'working') {
+            this.highlightRelevantComponents(layerElement, layerName);
+        }
+    }
+
+    highlightRelevantComponents(layerElement, layerName) {
+        const components = layerElement.querySelectorAll('.layer-component');
+        
+        // Randomly highlight 1-2 components to simulate work being done
+        const activeComponents = Array.from(components).slice(0, Math.min(2, components.length));
+        activeComponents.forEach(comp => comp.classList.add('working'));
+    }
+
+    incrementArchitectureStats(layerName, statType, increment = 1) {
+        if (!this.architectureStats[layerName]) {
+            this.architectureStats[layerName] = { files: 0, edits: 0, tests: 0 };
+        }
+        
+        this.architectureStats[layerName][statType] += increment;
+        
+        // Update the display
+        const layerElement = document.querySelector(`[data-layer="${layerName}"]`);
+        if (layerElement) {
+            const statElement = layerElement.querySelector(`[data-stat="${statType}"]`);
+            if (statElement) {
+                statElement.textContent = this.architectureStats[layerName][statType];
+            }
+        }
+    }
+
+    renderFallbackArchitecture() {
+        const diagramContainer = document.getElementById('architecture-diagram');
+        if (!diagramContainer) return;
+
+        diagramContainer.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem;">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="9" y1="9" x2="9" y2="15"/>
+                    <line x1="15" y1="9" x2="15" y2="15"/>
+                </svg>
+                <p>Architecture analysis is being generated...</p>
+                <p style="font-size: 0.8rem; margin-top: 0.5rem;">The visual diagram will appear once project analysis is complete.</p>
+            </div>
+        `;
+    }
+
+    clearArchitectureHighlighting() {
+        // Clear all active states from architecture layers and components
+        document.querySelectorAll('.architecture-layer').forEach(el => {
+            el.classList.remove('active', 'working');
+        });
+        
+        document.querySelectorAll('.layer-component').forEach(el => {
+            el.classList.remove('active', 'working');
+        });
+    }
+
+    getDefaultProjectPath() {
+        // Return a placeholder project path for frontend use
+        // This should rarely be used as projectData.path should be set
+        return '';
+    }
+
+    updateArchitectureStatistics(layerName, executionResult) {
+        if (!this.architectureStats[layerName]) {
+            this.architectureStats[layerName] = { files: 0, edits: 0, tests: 0 };
+        }
+
+        // Guard against undefined executionResult
+        if (!executionResult) {
+            console.warn('updateArchitectureStatistics called with undefined executionResult');
+            return;
+        }
+
+        // Extract statistics from execution result
+        const filesCreated = executionResult.filesCreated?.length || 0;
+        const filesModified = executionResult.filesModified?.length || 0;
+        const testsRun = executionResult.testsRun || 0;
+        
+        // Update statistics
+        this.architectureStats[layerName].files += filesCreated;
+        this.architectureStats[layerName].edits += filesModified;
+        this.architectureStats[layerName].tests += testsRun;
+        
+        // Refresh the visual display
+        this.updateArchitectureStatsDisplay(layerName);
+    }
+
+    updateArchitectureStatsDisplay(layerName) {
+        const layerElement = document.querySelector(`[data-layer="${layerName}"]`);
+        if (!layerElement) return;
+
+        const stats = this.architectureStats[layerName];
+        const statElements = layerElement.querySelectorAll('.layer-stat-value');
+        
+        if (statElements.length >= 3) {
+            statElements[0].textContent = stats.files; // files
+            statElements[1].textContent = stats.edits; // edits  
+            statElements[2].textContent = stats.tests; // tests
+            
+            // Add a brief animation to show the update
+            statElements.forEach(el => {
+                el.style.background = 'var(--accent)';
+                el.style.color = 'white';
+                el.style.borderRadius = '3px';
+                el.style.padding = '1px 3px';
+                
+                setTimeout(() => {
+                    el.style.background = '';
+                    el.style.color = '';
+                    el.style.borderRadius = '';
+                    el.style.padding = '';
+                }, 1000);
+            });
+        }
     }
 
     getTaskExecutionSteps(task) {
@@ -1366,13 +2025,14 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
         return commonSteps;
     }
 
-    completeExecution() {
+    async completeExecution() {
         this.isExecuting = false;
-        this.isPaused = false;
         this.currentExecutingTask = null;
         
+        // Terminate all Claude instances
+        await this.terminateAllInstances();
+        
         document.getElementById('start-execution-btn').disabled = false;
-        document.getElementById('pause-execution-btn').disabled = true;
         document.getElementById('stop-execution-btn').disabled = true;
         
         // Show completion summary
@@ -1384,66 +2044,131 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
         if (failedTasks.length > 0) {
             summaryMessage += `❌ Failed: ${failedTasks.length} tasks\n`;
         }
+        summaryMessage += `\n🤖 All Claude instances have been terminated.`;
         
-        alert(summaryMessage);
+        this.showNotification(summaryMessage, 'success');
     }
 
-    pauseExecution() {
-        this.isPaused = true;
-        document.getElementById('pause-execution-btn').style.display = 'none';
-        document.getElementById('resume-execution-btn').style.display = 'inline-block';
-    }
+    // Removed pauseExecution and resumeExecution - simplified to just stop
 
-    resumeExecution() {
-        this.isPaused = false;
-        document.getElementById('pause-execution-btn').style.display = 'inline-block';
-        document.getElementById('resume-execution-btn').style.display = 'none';
-        this.executeNextTask();
-    }
-
-    stopExecution() {
+    async stopExecution() {
         this.isExecuting = false;
-        this.isPaused = false;
         
         // Terminate all Claude instances
-        this.claudeInstances.forEach(instance => {
-            this.sendWebSocketMessage({
-                type: 'terminateInstance',
-                instanceId: instance.id
-            });
-        });
+        await this.terminateAllInstances();
 
         document.getElementById('start-execution-btn').disabled = false;
+        document.getElementById('stop-execution-btn').disabled = true;
+        
+        this.showNotification('Execution stopped. All Claude instances terminated.', 'info');
     }
 
     // New methods for enhanced execution monitoring
     generateStepMetrics(step, task) {
         const metrics = {
+            // Code metrics
             filesAffected: 0,
             linesChanged: 0,
             commands: [],
             warnings: 0,
-            errors: 0
+            errors: 0,
+            
+            // Architectural metrics
+            componentsCreated: 0,
+            componentsModified: 0,
+            designPatternsImplemented: [],
+            dependenciesAdded: [],
+            dependenciesRemoved: [],
+            apiEndpoints: 0,
+            databaseChanges: 0,
+            configurationUpdates: 0,
+            
+            // Quality metrics
+            testCoverage: 0,
+            codeComplexity: 'low',
+            securityIssues: 0,
+            performanceImpact: 'neutral',
+            
+            // Architecture status
+            layerChanges: [],
+            moduleInteractions: [],
+            dataFlowUpdates: []
         };
         
-        // Generate realistic metrics based on step type
+        // Generate realistic architectural metrics based on step type
+        const designPatterns = ['MVC', 'Repository', 'Factory', 'Observer', 'Singleton', 'Strategy', 'Decorator'];
+        const layers = ['Presentation', 'Business Logic', 'Data Access', 'Infrastructure'];
+        const performanceImpacts = ['improved', 'neutral', 'degraded'];
+        const complexityLevels = ['low', 'medium', 'high'];
+        
         if (step.description.includes('Creating') || step.description.includes('Setup')) {
-            metrics.filesAffected = Math.floor(Math.random() * 5) + 1;
-            metrics.linesChanged = Math.floor(Math.random() * 200) + 50;
+            metrics.filesAffected = Math.floor(Math.random() * 5) + 2;
+            metrics.linesChanged = Math.floor(Math.random() * 300) + 100;
+            metrics.componentsCreated = Math.floor(Math.random() * 3) + 1;
+            metrics.designPatternsImplemented = [designPatterns[Math.floor(Math.random() * designPatterns.length)]];
+            metrics.dependenciesAdded = ['express', 'lodash', 'uuid'].slice(0, Math.floor(Math.random() * 3) + 1);
+            metrics.configurationUpdates = Math.floor(Math.random() * 2) + 1;
+            metrics.layerChanges = [layers[Math.floor(Math.random() * layers.length)]];
             metrics.commands = ['mkdir', 'touch', 'npm init'];
+            
         } else if (step.description.includes('Installing') || step.description.includes('dependencies')) {
             metrics.filesAffected = Math.floor(Math.random() * 3) + 1;
             metrics.linesChanged = Math.floor(Math.random() * 100) + 20;
+            metrics.dependenciesAdded = ['react', 'axios', 'moment'].slice(0, Math.floor(Math.random() * 3) + 1);
+            metrics.configurationUpdates = 1;
             metrics.commands = ['npm install', 'yarn add'];
+            
         } else if (step.description.includes('test')) {
-            metrics.testsRun = Math.floor(Math.random() * 10) + 3;
-            metrics.testsPassed = metrics.testsRun - Math.floor(Math.random() * 2);
-            metrics.commands = ['npm test', 'jest'];
+            metrics.testsRun = Math.floor(Math.random() * 15) + 5;
+            metrics.testsPassed = metrics.testsRun - Math.floor(Math.random() * 3);
+            metrics.testCoverage = Math.floor(Math.random() * 30) + 70; // 70-100%
+            metrics.commands = ['npm test', 'jest', 'cypress'];
+            
+        } else if (step.description.includes('API') || step.description.includes('endpoint')) {
+            metrics.filesAffected = Math.floor(Math.random() * 4) + 1;
+            metrics.linesChanged = Math.floor(Math.random() * 200) + 80;
+            metrics.componentsModified = Math.floor(Math.random() * 2) + 1;
+            metrics.apiEndpoints = Math.floor(Math.random() * 3) + 1;
+            metrics.designPatternsImplemented = ['RESTful', 'MVC'];
+            metrics.layerChanges = ['Business Logic', 'Presentation'];
+            metrics.commands = ['curl', 'postman', 'swagger'];
+            
+        } else if (step.description.includes('database') || step.description.includes('Database')) {
+            metrics.filesAffected = Math.floor(Math.random() * 3) + 1;
+            metrics.linesChanged = Math.floor(Math.random() * 150) + 50;
+            metrics.databaseChanges = Math.floor(Math.random() * 3) + 1;
+            metrics.componentsModified = 1;
+            metrics.designPatternsImplemented = ['Repository', 'DAO'];
+            metrics.layerChanges = ['Data Access'];
+            metrics.commands = ['migrate', 'seed', 'query'];
+            
         } else if (step.description.includes('Executing') || step.description.includes('main')) {
-            metrics.filesAffected = Math.floor(Math.random() * 8) + 2;
-            metrics.linesChanged = Math.floor(Math.random() * 500) + 100;
+            metrics.filesAffected = Math.floor(Math.random() * 8) + 3;
+            metrics.linesChanged = Math.floor(Math.random() * 600) + 200;
+            metrics.componentsModified = Math.floor(Math.random() * 4) + 1;
             metrics.warnings = Math.floor(Math.random() * 3);
+            metrics.designPatternsImplemented = designPatterns.slice(0, Math.floor(Math.random() * 2) + 1);
+            metrics.codeComplexity = complexityLevels[Math.floor(Math.random() * complexityLevels.length)];
+            metrics.performanceImpact = performanceImpacts[Math.floor(Math.random() * performanceImpacts.length)];
+            metrics.layerChanges = layers.slice(0, Math.floor(Math.random() * 2) + 1);
+            metrics.moduleInteractions = ['AuthService', 'UserController', 'DatabaseService'].slice(0, Math.floor(Math.random() * 2) + 1);
             metrics.commands = ['build', 'compile', 'transform'];
+            
+        } else if (step.description.includes('refactor') || step.description.includes('improve')) {
+            metrics.filesAffected = Math.floor(Math.random() * 6) + 2;
+            metrics.linesChanged = Math.floor(Math.random() * 400) + 100;
+            metrics.componentsModified = Math.floor(Math.random() * 3) + 1;
+            metrics.designPatternsImplemented = [designPatterns[Math.floor(Math.random() * designPatterns.length)]];
+            metrics.codeComplexity = 'low'; // Refactoring should reduce complexity
+            metrics.performanceImpact = 'improved';
+            metrics.testCoverage = Math.floor(Math.random() * 20) + 80; // Better coverage after refactoring
+            metrics.layerChanges = layers.slice(0, Math.floor(Math.random() * 2) + 1);
+            metrics.commands = ['refactor', 'optimize', 'cleanup'];
+        }
+        
+        // Add random security and quality checks
+        if (Math.random() < 0.1) {
+            metrics.securityIssues = Math.floor(Math.random() * 2) + 1;
         }
         
         return metrics;
@@ -1492,18 +2217,68 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
     renderTaskMetrics(metrics, status) {
         if (!metrics || Object.keys(metrics).length === 0) return '';
         
-        const items = [];
-        if (metrics.filesCreated) items.push(`📄 ${metrics.filesCreated} created`);
-        if (metrics.filesModified) items.push(`✏️ ${metrics.filesModified} modified`);
-        if (metrics.linesAdded) items.push(`📈 +${metrics.linesAdded} lines`);
-        if (metrics.linesDeleted) items.push(`📉 -${metrics.linesDeleted} lines`);
-        if (metrics.testsRun) items.push(`🧪 ${metrics.testsPassed}/${metrics.testsRun} tests`);
-        if (metrics.errorsEncountered) items.push(`❌ ${metrics.errorsEncountered} errors`);
-        if (metrics.warningsGenerated) items.push(`⚠️ ${metrics.warningsGenerated} warnings`);
+        // Core metrics
+        const coreItems = [];
+        if (metrics.filesCreated) coreItems.push(`📄 ${metrics.filesCreated} created`);
+        if (metrics.filesModified) coreItems.push(`✏️ ${metrics.filesModified} modified`);
+        if (metrics.linesAdded) coreItems.push(`📈 +${metrics.linesAdded} lines`);
+        if (metrics.linesDeleted) coreItems.push(`📉 -${metrics.linesDeleted} lines`);
         
-        if (items.length === 0) return '';
+        // Architecture metrics
+        const archItems = [];
+        if (metrics.componentsCreated) archItems.push(`🏗️ ${metrics.componentsCreated} components created`);
+        if (metrics.componentsModified) archItems.push(`🔧 ${metrics.componentsModified} components modified`);
+        if (metrics.designPatternsImplemented && metrics.designPatternsImplemented.length > 0) {
+            archItems.push(`🎯 ${metrics.designPatternsImplemented.join(', ')} patterns`);
+        }
+        if (metrics.dependenciesAdded && metrics.dependenciesAdded.length > 0) {
+            archItems.push(`📦 +${metrics.dependenciesAdded.length} dependencies`);
+        }
+        if (metrics.dependenciesRemoved && metrics.dependenciesRemoved.length > 0) {
+            archItems.push(`📦 -${metrics.dependenciesRemoved.length} dependencies`);
+        }
+        if (metrics.apiEndpoints) archItems.push(`🌐 ${metrics.apiEndpoints} API endpoints`);
+        if (metrics.databaseChanges) archItems.push(`🗄️ ${metrics.databaseChanges} DB changes`);
+        if (metrics.configurationUpdates) archItems.push(`⚙️ ${metrics.configurationUpdates} config updates`);
         
-        return `<div class="task-metrics">${items.join(' • ')}</div>`;
+        // Quality metrics
+        const qualityItems = [];
+        if (metrics.testsRun) qualityItems.push(`🧪 ${metrics.testsPassed}/${metrics.testsRun} tests`);
+        if (metrics.testCoverage) qualityItems.push(`📊 ${metrics.testCoverage}% coverage`);
+        if (metrics.codeComplexity) qualityItems.push(`🔍 ${metrics.codeComplexity} complexity`);
+        if (metrics.securityIssues) qualityItems.push(`🛡️ ${metrics.securityIssues} security issues`);
+        if (metrics.performanceImpact && metrics.performanceImpact !== 'neutral') {
+            const icon = metrics.performanceImpact === 'improved' ? '⚡' : '🐌';
+            qualityItems.push(`${icon} ${metrics.performanceImpact} performance`);
+        }
+        if (metrics.errorsEncountered) qualityItems.push(`❌ ${metrics.errorsEncountered} errors`);
+        if (metrics.warningsGenerated) qualityItems.push(`⚠️ ${metrics.warningsGenerated} warnings`);
+        
+        // Layer changes
+        const layerItems = [];
+        if (metrics.layerChanges && metrics.layerChanges.length > 0) {
+            layerItems.push(`🏛️ ${metrics.layerChanges.join(', ')} layers`);
+        }
+        if (metrics.moduleInteractions && metrics.moduleInteractions.length > 0) {
+            layerItems.push(`🔗 ${metrics.moduleInteractions.length} module interactions`);
+        }
+        
+        // Combine all sections
+        const allItems = [];
+        if (coreItems.length > 0) allItems.push(...coreItems);
+        if (archItems.length > 0) allItems.push(...archItems);
+        if (qualityItems.length > 0) allItems.push(...qualityItems);
+        if (layerItems.length > 0) allItems.push(...layerItems);
+        
+        if (allItems.length === 0) return '';
+        
+        return `
+            <div class="task-metrics">
+                <div class="metrics-core">${coreItems.join(' • ')}</div>
+                ${archItems.length > 0 ? `<div class="metrics-architecture">${archItems.join(' • ')}</div>` : ''}
+                ${qualityItems.length > 0 ? `<div class="metrics-quality">${qualityItems.join(' • ')}</div>` : ''}
+                ${layerItems.length > 0 ? `<div class="metrics-layers">${layerItems.join(' • ')}</div>` : ''}
+            </div>`;
     }
     
     generateStepError(step) {
@@ -1524,25 +2299,61 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
             .filter(task => task.metrics)
             .reduce((total, task) => {
                 const m = task.metrics;
+                
+                // Collect architectural metrics from step metrics within tasks
+                const stepMetrics = task.stepMetrics || [];
+                const archMetrics = stepMetrics.reduce((arch, step) => ({
+                    totalComponents: arch.totalComponents + (step.componentsCreated || 0) + (step.componentsModified || 0),
+                    totalPatterns: arch.totalPatterns + (step.designPatternsImplemented && step.designPatternsImplemented.length || 0),
+                    totalDependencies: arch.totalDependencies + (step.dependenciesAdded && step.dependenciesAdded.length || 0) + (step.dependenciesRemoved && step.dependenciesRemoved.length || 0),
+                    totalEndpoints: arch.totalEndpoints + (step.apiEndpoints || 0),
+                    totalDbChanges: arch.totalDbChanges + (step.databaseChanges || 0),
+                    totalLayerChanges: arch.totalLayerChanges + (step.layerChanges && step.layerChanges.length || 0)
+                }), { totalComponents: 0, totalPatterns: 0, totalDependencies: 0, totalEndpoints: 0, totalDbChanges: 0, totalLayerChanges: 0 });
+                
                 return {
                     totalFiles: total.totalFiles + (m.filesCreated || 0) + (m.filesModified || 0),
                     totalLines: total.totalLines + (m.linesAdded || 0) + (m.linesDeleted || 0),
                     totalErrors: total.totalErrors + (m.errorsEncountered || 0),
                     totalWarnings: total.totalWarnings + (m.warningsGenerated || 0),
-                    totalTests: total.totalTests + (m.testsRun || 0)
+                    totalTests: total.totalTests + (m.testsRun || 0),
+                    totalComponents: total.totalComponents + archMetrics.totalComponents,
+                    totalPatterns: total.totalPatterns + archMetrics.totalPatterns,
+                    totalDependencies: total.totalDependencies + archMetrics.totalDependencies,
+                    totalEndpoints: total.totalEndpoints + archMetrics.totalEndpoints,
+                    totalDbChanges: total.totalDbChanges + archMetrics.totalDbChanges,
+                    totalLayerChanges: total.totalLayerChanges + archMetrics.totalLayerChanges
                 };
-            }, { totalFiles: 0, totalLines: 0, totalErrors: 0, totalWarnings: 0, totalTests: 0 });
+            }, { 
+                totalFiles: 0, totalLines: 0, totalErrors: 0, totalWarnings: 0, totalTests: 0,
+                totalComponents: 0, totalPatterns: 0, totalDependencies: 0, totalEndpoints: 0,
+                totalDbChanges: 0, totalLayerChanges: 0
+            });
         
         // Update execution stats in header if element exists
         const statsElement = document.getElementById('execution-stats');
         if (statsElement) {
-            statsElement.innerHTML = `
-                📄 ${allMetrics.totalFiles} files • 
-                📝 ${allMetrics.totalLines} lines • 
-                🧪 ${allMetrics.totalTests} tests • 
-                ${allMetrics.totalErrors ? `❌ ${allMetrics.totalErrors} errors • ` : ''}
-                ${allMetrics.totalWarnings ? `⚠️ ${allMetrics.totalWarnings} warnings` : ''}
-            `;
+            const coreStats = [
+                `📄 ${allMetrics.totalFiles} files`,
+                `📝 ${allMetrics.totalLines} lines`,
+                `🧪 ${allMetrics.totalTests} tests`
+            ];
+            
+            const archStats = [];
+            if (allMetrics.totalComponents > 0) archStats.push(`🏗️ ${allMetrics.totalComponents} components`);
+            if (allMetrics.totalPatterns > 0) archStats.push(`🎯 ${allMetrics.totalPatterns} patterns`);
+            if (allMetrics.totalDependencies > 0) archStats.push(`📦 ${allMetrics.totalDependencies} deps`);
+            if (allMetrics.totalEndpoints > 0) archStats.push(`🌐 ${allMetrics.totalEndpoints} endpoints`);
+            if (allMetrics.totalDbChanges > 0) archStats.push(`🗄️ ${allMetrics.totalDbChanges} DB`);
+            if (allMetrics.totalLayerChanges > 0) archStats.push(`🏛️ ${allMetrics.totalLayerChanges} layers`);
+            
+            const issueStats = [];
+            if (allMetrics.totalErrors > 0) issueStats.push(`❌ ${allMetrics.totalErrors} errors`);
+            if (allMetrics.totalWarnings > 0) issueStats.push(`⚠️ ${allMetrics.totalWarnings} warnings`);
+            
+            const allStats = [...coreStats, ...archStats, ...issueStats].filter(Boolean);
+            
+            statsElement.innerHTML = allStats.join(' • ');
         }
     }
 
@@ -1563,7 +2374,7 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
             <div class="activity-item ${activity.type}" data-type="${activity.type}">
                 <div class="activity-icon">${this.getActivityIcon(activity.type)}</div>
                 <div class="activity-content">
-                    <div class="activity-description">${activity.parsedContent?.summary || activity.rawData}</div>
+                    <div class="activity-description">${activity.parsedContent && activity.parsedContent.summary || activity.rawData}</div>
                     <div class="activity-meta">
                         <span class="activity-time">${this.formatTime(activity.timestamp)}</span>
                         <span class="activity-importance">Priority: ${activity.importance}/10</span>
@@ -1641,6 +2452,57 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
         `).join('');
     }
 
+    async createClaudeInstances(count) {
+        console.log(`Creating ${count} Claude instances...`);
+        
+        // Clear any existing instances first
+        await this.terminateAllInstances();
+        
+        // Create the specified number of instances
+        const createPromises = [];
+        for (let i = 0; i < count; i++) {
+            createPromises.push(this.createSingleInstance(i + 1));
+        }
+        
+        try {
+            await Promise.all(createPromises);
+            console.log(`Successfully created ${count} Claude instances`);
+        } catch (error) {
+            console.error('Failed to create Claude instances:', error);
+            this.showNotification('Failed to create Claude instances', 'error');
+        }
+    }
+
+    async createSingleInstance(index) {
+        const response = await fetch('/api/v1/claude-code/instances', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                command: this.settings.claudePath || '/opt/homebrew/bin/claude',
+                options: {
+                    name: `Claude Agent ${index}`,
+                    workingDir: this.projectData.path || this.getDefaultProjectPath()
+                }
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to create instance ${index}: ${response.statusText}`);
+        }
+        
+        return await response.json();
+    }
+
+    async terminateAllInstances() {
+        const terminatePromises = this.claudeInstances.map(instance => 
+            this.terminateInstance(instance.id)
+        );
+        
+        await Promise.allSettled(terminatePromises);
+        this.claudeInstances = [];
+        this.renderClaudeInstances();
+    }
+
     addClaudeInstance(instance) {
         this.claudeInstances.push(instance);
         this.renderClaudeInstances();
@@ -1651,11 +2513,23 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
         this.renderClaudeInstances();
     }
 
-    terminateInstance(instanceId) {
-        this.sendWebSocketMessage({
-            type: 'terminateInstance',
-            instanceId
-        });
+    async terminateInstance(instanceId) {
+        try {
+            const response = await fetch(`/api/v1/claude-code/instances/${instanceId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                this.removeClaudeInstance(instanceId);
+                return true;
+            } else {
+                console.error(`Failed to terminate instance ${instanceId}`);
+                return false;
+            }
+        } catch (error) {
+            console.error(`Error terminating instance ${instanceId}:`, error);
+            return false;
+        }
     }
 
     // Utility Methods
@@ -2187,14 +3061,9 @@ This information will be used to generate tasks in Step 3.
     }
 
 
-    setPauseAfterNextTask() {
-        this.pauseAfterNextTask = true;
-        this.showNotification('Execution will pause after the next completed task', 'info');
-    }
-
     setStopAfterNextTask() {
         this.stopAfterNextTask = true;
-        this.showNotification('Execution will stop after the next completed task', 'info');
+        this.showNotification('Execution will stop after the current task completes', 'info');
     }
 
     showGitCommitOption() {
@@ -2215,7 +3084,7 @@ This information will be used to generate tasks in Step 3.
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: commitMessage,
-                    projectPath: this.projectData.selectedFolder || this.projectData.path || process.cwd()
+                    projectPath: this.projectData.selectedFolder || this.projectData.path || this.getDefaultProjectPath()
                 })
             });
 

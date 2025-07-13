@@ -2,7 +2,7 @@
 
 AgentOps is an AI agent monitoring, control, and workflow visualization platform that brings DevOps principles to AI agent development. It provides real-time oversight and management of AI agents like Claude Code throughout the entire development lifecycle.
 
-![Project Status](https://img.shields.io/badge/Status-Phase%203%20Frontend%20Complete-brightgreen)
+![Project Status](https://img.shields.io/badge/Status-Phase%204%20Advanced%20Complete-brightgreen)
 ![Test Coverage](https://img.shields.io/badge/Coverage-88.46%25-brightgreen)
 ![Branch Coverage](https://img.shields.io/badge/Branch%20Coverage-84.00%25-brightgreen)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen)
@@ -10,17 +10,18 @@ AgentOps is an AI agent monitoring, control, and workflow visualization platform
 
 ## 🚀 Features
 
-### Current (Phase 3+ Advanced Features)
-- **🤖 Claude-Powered Project Specification** - Integrated Claude AI workflow for comprehensive product specifications
+### Current (Phase 4 Advanced Complete)
+- **🏗️ Visual Architecture Diagrams** - Real-time project architecture visualization with layer-based components
+- **📊 Live Architecture Statistics** - Real file counts, edits, and test metrics updated during task execution
+- **🎯 Smart Instance Management** - Never creates more agent instances than available tasks
+- **⚡ Simplified Execution Control** - Clean "Stop" and "Stop After Current Task" controls (no confusing pause states)
+- **🔄 Long-Running Task Support** - Tasks can run for minutes with proper timeout handling (5+ minute support)
+- **🤖 Claude-Powered Specifications** - Integrated Claude AI workflow for comprehensive product specifications
 - **📁 Real File System Navigation** - Browse and select project directories with full navigation
 - **🎯 5-Step Workflow Management** - Complete end-to-end project workflow from specification to execution
-- **📊 Enhanced Execution Monitoring** - Real-time metrics showing files modified, lines changed, errors, and warnings
-- **⚡ Advanced Execution Control** - Pause/Stop after next task completion with graceful workflow management
-- **🔄 Intelligent Loop Prevention** - Smart handling of existing projects with final analysis task generation
+- **📈 Enhanced Execution Monitoring** - Real-time metrics with architecture highlighting during task execution
 - **🔍 Activity Parsing & Classification** - Intelligent categorization of all AI agent activities
-- **💻 Multi-Instance Claude Management** - Spawn, monitor, and terminate multiple Claude Code instances
-- **📈 Interactive Progress Tracking** - Visual workflow progress with step-by-step guidance
-- **🛠️ Advanced Configuration** - Execution modes, instance limits, and monitoring options
+- **💻 Multi-Instance Claude Management** - Optimal instance creation based on actual workload needs
 - **🔄 AI-Powered Task Generation** - Dynamic task identification using real Claude Code CLI integration
 - **🔧 Git Integration** - Seamless git commit workflow when execution is paused or stopped
 - **🎨 Neural Purple Brand System** - Professional color palette with Linear/Uizard-inspired aesthetics
