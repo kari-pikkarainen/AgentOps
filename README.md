@@ -10,19 +10,21 @@ AgentOps is an AI agent monitoring, control, and workflow visualization platform
 
 ## 🚀 Features
 
-### Current (Phase 3 Frontend Complete)
+### Current (Phase 3+ Advanced Features)
 - **🤖 Claude-Powered Project Specification** - Integrated Claude AI workflow for comprehensive product specifications
 - **📁 Real File System Navigation** - Browse and select project directories with full navigation
 - **🎯 5-Step Workflow Management** - Complete end-to-end project workflow from specification to execution
-- **📊 Live Task Monitoring** - Real-time tracking of AI agent task execution with progress visualization
-- **⚡ WebSocket Real-time Communication** - Live updates for all monitoring activities
+- **📊 Enhanced Execution Monitoring** - Real-time metrics showing files modified, lines changed, errors, and warnings
+- **⚡ Advanced Execution Control** - Pause/Stop after next task completion with graceful workflow management
+- **🔄 Intelligent Loop Prevention** - Smart handling of existing projects with final analysis task generation
 - **🔍 Activity Parsing & Classification** - Intelligent categorization of all AI agent activities
 - **💻 Multi-Instance Claude Management** - Spawn, monitor, and terminate multiple Claude Code instances
 - **📈 Interactive Progress Tracking** - Visual workflow progress with step-by-step guidance
 - **🛠️ Advanced Configuration** - Execution modes, instance limits, and monitoring options
-- **🔄 Dynamic Task Generation** - AI-powered task identification based on project specifications
+- **🔄 AI-Powered Task Generation** - Dynamic task identification using real Claude Code CLI integration
+- **🔧 Git Integration** - Seamless git commit workflow when execution is paused or stopped
 - **🎨 Neural Purple Brand System** - Professional color palette with Linear/Uizard-inspired aesthetics
-- **✨ Modern UI Components** - Inter typography, abstract logo, and contemporary design patterns
+- **✨ Modern UI Components** - Inter typography, Lucide SVG icons, and contemporary design patterns
 
 ### Phase 1 Foundation ✅
 - Real-time workflow visualization with interactive canvas
@@ -100,10 +102,12 @@ AgentOps is an AI agent monitoring, control, and workflow visualization platform
 - **Settings Validation** - Ensure execution plan is ready for deployment
 
 #### Step 5: Live Execution & Monitoring
-- **Real-time Task Progress** - Visual progress tracking for all active tasks
+- **Enhanced Progress Metrics** - Real-time display of files modified, lines changed, errors, and warnings
+- **Advanced Execution Control** - Pause/Stop after next task completion for graceful workflow management
 - **Claude Instance Monitoring** - Live status of all running Claude Code processes
 - **Activity Timeline** - Real-time stream of all agent activities with intelligent filtering
-- **Execution Controls** - Pause, resume, and stop execution with full control
+- **Git Integration** - Seamless commit workflow when execution is paused or stopped
+- **Loop Prevention** - Smart handling for existing projects with continuous improvement suggestions
 
 ### 🔧 Advanced Features
 - **WebSocket Real-time Updates** - Live communication between frontend and backend
@@ -189,6 +193,23 @@ DELETE /api/v1/activities
 
 # Browse file system
 GET /api/v1/filesystem/browse?path=/path/to/directory
+
+# Generate tasks with AI
+POST /api/v1/claude-code/generate-tasks
+{
+  "prompt": "Generate development tasks for this Node.js project",
+  "projectContext": {
+    "projectPath": "/path/to/project",
+    "isExisting": true
+  }
+}
+
+# Commit changes to git
+POST /api/v1/git/commit
+{
+  "message": "Update: Task completion via AgentOps",
+  "projectPath": "/path/to/project"
+}
 ```
 
 ### WebSocket Events
@@ -305,14 +326,23 @@ npm run test:coverage # Run tests with coverage report
 - [x] **Abstract Logo Design** - Modern SVG logo representing AI agent workflows
 - [x] **Enhanced Typography** - Inter font integration with proper spacing and hierarchy
 
-### Phase 4: Advanced Features (Next)
-- [ ] Enhanced task generation with Claude Code integration
+### Phase 4: Advanced Features ✅ (Current)
+- [x] **Enhanced Execution Monitoring** - Real-time metrics for files, lines, errors, warnings
+- [x] **Advanced Execution Controls** - Pause/Stop after next task completion
+- [x] **Intelligent Loop Prevention** - Smart existing project handling with analysis tasks
+- [x] **Git Integration** - Seamless commit workflow during execution control
+- [x] **AI Task Generation** - Real Claude Code integration for dynamic task creation
+- [x] **Modern Icon System** - Complete Lucide SVG icon integration
+- [x] **Professional UI Polish** - Sharp typography, consistent fonts, optimized layouts
+
+### Phase 5: Analytics & Optimization (Next)
 - [ ] Advanced workflow analytics and reporting
 - [ ] Multi-project workspace management
 - [ ] Team collaboration features
 - [ ] Custom workflow templates and sharing
+- [ ] Performance metrics and optimization tools
 
-### Phase 5: Mobile & Enterprise
+### Phase 6: Mobile & Enterprise
 - [ ] Native iOS app with SwiftUI
 - [ ] Native Android app with Kotlin/Compose
 - [ ] Cross-platform mobile with React Native/Flutter
@@ -360,4 +390,4 @@ This software is proprietary and confidential. Unauthorized copying, distributio
 
 ---
 
-**Phase 3 Frontend Complete**: AgentOps now features a complete 5-step workflow interface with Claude AI integration, real file system navigation, intelligent task management, and live execution monitoring. Built on robust backend with **88.46% test coverage (84% branch coverage)** and real-time WebSocket communication. Ready for Phase 4 advanced workflow features and analytics.
+**Phase 4 Advanced Features Complete**: AgentOps now features enhanced execution monitoring with real-time metrics, advanced execution controls with pause/stop after next task, intelligent loop prevention for existing projects, seamless git integration, and AI-powered task generation using real Claude Code CLI. Built on robust backend with **88.46% test coverage (84% branch coverage)** and comprehensive UI polish with Lucide icons and professional typography. Ready for Phase 5 analytics and optimization features.

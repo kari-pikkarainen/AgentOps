@@ -1557,23 +1557,6 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
             </div>`;
         }).join('');
     }
-                <div class="task-info">
-                    <div class="task-header">
-                        <h4>${task.title}</h4>
-                        <span class="task-progress-percent">${progress}%</span>
-                    </div>
-                    <p>${task.description}</p>
-                    <div class="task-progress-bar">
-                        <div class="progress-fill ${isExecuting ? 'active' : ''}" 
-                             style="width: ${progress}%"></div>
-                    </div>
-                    ${status === 'error' ? `<div class="task-error">❌ ${task.error}</div>` : ''}
-                    ${task.completedAt ? `<div class="task-completed-time">Completed: ${new Date(task.completedAt).toLocaleTimeString()}</div>` : ''}
-                </div>
-            </div>
-            `;
-        }).join('');
-    }
 
     renderClaudeInstances() {
         const instancesList = document.getElementById('claude-instances-list');
@@ -2140,56 +2123,6 @@ This information will be used to generate tasks in Step 3.
             alert('Error parsing specification. Please check the format.');
         }
     }
-}
-
-// Global functions for HTML onclick handlers
-function copyPrompt() {
-    const promptText = document.getElementById('claude-prompt').textContent;
-    navigator.clipboard.writeText(promptText).then(() => {
-        const btn = event.target;
-        const originalText = btn.textContent;
-        btn.textContent = '✅ Copied!';
-        btn.style.background = '#2ecc71';
-        
-        setTimeout(() => {
-            btn.textContent = originalText;
-            btn.style.background = '#667eea';
-        }, 2000);
-    }).catch(err => {
-        console.error('Failed to copy text: ', err);
-        alert('Failed to copy prompt. Please copy manually.');
-    });
-}
-
-function togglePreview() {
-    if (window.agentOps) {
-        agentOps.togglePreview();
-    }
-}
-
-function extractProjectDetails() {
-    if (window.agentOps) {
-        agentOps.extractProjectDetails();
-    }
-}
-
-function reanalyzeProject() {
-    if (window.agentOps) {
-        const projectPath = document.getElementById('existing-project-path').value;
-        if (projectPath) {
-            agentOps.analyzeExistingProject(projectPath);
-        }
-    }
-}
-
-function viewProjectFiles() {
-    if (window.agentOps) {
-        const projectPath = document.getElementById('existing-project-path').value;
-        if (projectPath) {
-            agentOps.openFolderSelector();
-            agentOps.loadFolderContents(projectPath);
-        }
-    }
 
     // Helper methods for execution control
     hasAnalysisTask() {
@@ -2263,6 +2196,56 @@ function viewProjectFiles() {
         } catch (error) {
             console.error('Git commit error:', error);
             this.showNotification('❌ Git commit failed', 'error');
+        }
+    }
+}
+
+// Global functions for HTML onclick handlers
+function copyPrompt() {
+    const promptText = document.getElementById('claude-prompt').textContent;
+    navigator.clipboard.writeText(promptText).then(() => {
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '✅ Copied!';
+        btn.style.background = '#2ecc71';
+        
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = '#667eea';
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        alert('Failed to copy prompt. Please copy manually.');
+    });
+}
+
+function togglePreview() {
+    if (window.agentOps) {
+        agentOps.togglePreview();
+    }
+}
+
+function extractProjectDetails() {
+    if (window.agentOps) {
+        agentOps.extractProjectDetails();
+    }
+}
+
+function reanalyzeProject() {
+    if (window.agentOps) {
+        const projectPath = document.getElementById('existing-project-path').value;
+        if (projectPath) {
+            agentOps.analyzeExistingProject(projectPath);
+        }
+    }
+}
+
+function viewProjectFiles() {
+    if (window.agentOps) {
+        const projectPath = document.getElementById('existing-project-path').value;
+        if (projectPath) {
+            agentOps.openFolderSelector();
+            agentOps.loadFolderContents(projectPath);
         }
     }
 }

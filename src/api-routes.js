@@ -586,7 +586,7 @@ async function generateTasksWithClaudeCode(req, res) {
         }
         
         // Check if Claude Code is available
-        const claudePath = await findClaudeCodePath();
+        const claudePath = findClaudeCodeExecutable();
         if (!claudePath) {
             return res.status(503).json({ 
                 error: 'Claude Code not found. Please install Claude Code CLI first.',
