@@ -622,28 +622,34 @@ class AgentOpsWorkflow {
         await this.updateProgress('identify', 'Preparing AI analysis with project details...');
         await this.delay(300);
         
-        // Step 3: Generate tasks with AI
-        await this.updateProgress('generate', 'Generating intelligent tasks with Claude Code...');
-        const tasks = await this.generateIntelligentTasks();
-        await this.delay(200);
-        
-        // Step 4: Process and prioritize
-        await this.updateProgress('prioritize', 'Processing AI recommendations and prioritizing...');
-        this.taskList = tasks; // Tasks are already prioritized by AI
-        await this.delay(400);
-        
-        // Show final summary
-        this.showTaskSummary();
-        await this.delay(800);
-        
-        // Complete and show results
-        this.completeAllProgressSteps();
-        this.renderTaskList();
-        
-        setTimeout(() => {
-            document.getElementById('task-loading').style.display = 'none';
-            document.getElementById('identified-tasks').style.display = 'block';
-        }, 300);
+        try {
+            // Step 3: Generate tasks with AI
+            await this.updateProgress('generate', 'Generating intelligent tasks with Claude Code...');
+            const tasks = await this.generateIntelligentTasks();
+            await this.delay(200);
+            
+            // Step 4: Process and prioritize
+            await this.updateProgress('prioritize', 'Processing AI recommendations and prioritizing...');
+            this.taskList = tasks; // Tasks are already prioritized by AI
+            await this.delay(400);
+            
+            // Show final summary
+            this.showTaskSummary();
+            await this.delay(800);
+            
+            // Complete and show results
+            this.completeAllProgressSteps();
+            this.renderTaskList();
+            
+            setTimeout(() => {
+                document.getElementById('task-loading').style.display = 'none';
+                document.getElementById('identified-tasks').style.display = 'block';
+            }, 300);
+            
+        } catch (error) {
+            console.error('Task generation failed:', error);
+            this.showTaskGenerationError(error);
+        }
     }
 
     // Task Generation Helper Methods
@@ -733,8 +739,7 @@ class AgentOpsWorkflow {
             return this.prioritizeAndEstimateTasks(tasks);
         } catch (error) {
             console.error('Failed to generate tasks with AI:', error);
-            // Fallback to basic task structure if AI fails
-            return this.generateFallbackTasks();
+            throw error; // Re-throw to handle properly in calling function
         }
     }
 
@@ -882,27 +887,81 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
         }
     }
     
-    generateFallbackTasks() {
-        // Minimal fallback if AI fails
-        const baseId = Date.now();
-        return [
-            {
-                id: baseId + 1,
-                title: this.isExistingProject ? 'Code Review' : 'Project Setup',
-                description: this.isExistingProject ? 'Review and improve existing code quality' : 'Initialize project structure and dependencies',
-                priority: 'high',
-                estimated: '1h',
-                selected: true
-            },
-            {
-                id: baseId + 2,
-                title: this.isExistingProject ? 'Improve Tests' : 'Implement Features',
-                description: this.isExistingProject ? 'Add or improve test coverage' : 'Build core application features',
-                priority: 'medium',
-                estimated: '2h',
-                selected: true
-            }
-        ];
+    showTaskGenerationError(error) {
+        // Hide loading UI
+        document.getElementById('task-loading').style.display = 'none';
+        
+        // Show error UI with retry option
+        const errorHtml = `
+            <div class="task-generation-error">
+                <div class="error-icon">⚠️</div>
+                <h3>Task Generation Failed</h3>
+                <p class="error-message">${error.message || 'Failed to generate tasks with Claude Code'}</p>
+                <div class="error-details">
+                    <p>This can happen if:</p>
+                    <ul>
+                        <li>Claude Code is not responding</li>
+                        <li>Network connection issues</li>
+                        <li>Claude Code is processing a complex request</li>
+                    </ul>
+                </div>
+                <div class="error-actions">
+                    <button id="retry-task-generation" class="btn btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 4v6h6"/>
+                            <path d="M23 20v-6h-6"/>
+                            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"/>
+                            <path d="M3.51 15a9 9 0 0 0 14.85 3.36L23 14"/>
+                        </svg>
+                        Retry Task Generation
+                    </button>
+                    <button id="manual-task-entry" class="btn btn-secondary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 20h9"/>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                        </svg>
+                        Enter Tasks Manually
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('identified-tasks').innerHTML = errorHtml;
+        document.getElementById('identified-tasks').style.display = 'block';
+        
+        // Add event listeners
+        document.getElementById('retry-task-generation').addEventListener('click', () => {
+            this.generateTasks(); // Retry task generation
+        });
+        
+        document.getElementById('manual-task-entry').addEventListener('click', () => {
+            this.showManualTaskEntry();
+        });
+    }
+
+    showManualTaskEntry() {
+        // Clear task list and show empty state for manual entry
+        this.taskList = [];
+        
+        const manualHtml = `
+            <div class="manual-task-entry">
+                <h3>Manual Task Entry</h3>
+                <p>Add tasks manually to proceed with your workflow.</p>
+                <div class="task-controls">
+                    <button id="add-custom-task-btn" class="btn btn-primary">+ Add Task</button>
+                </div>
+                <div id="tasks-container" class="tasks-container">
+                    <div class="empty-state">
+                        <p>No tasks added yet. Click "Add Task" to get started.</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('identified-tasks').innerHTML = manualHtml;
+        
+        // Re-bind the add task button
+        document.getElementById('add-custom-task-btn').addEventListener('click', () => this.openCustomTaskModal());
     }
 
     renderTaskList() {

@@ -1638,6 +1638,104 @@ textarea {
     gap: 8px;
 }
 
+/* Task Generation Error */
+.task-generation-error {
+    text-align: center;
+    padding: 48px 32px;
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    margin: 32px 0;
+}
+
+.task-generation-error .error-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.task-generation-error h3 {
+    margin: 0 0 16px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.task-generation-error .error-message {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+}
+
+.error-details {
+    background: var(--background);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 24px 0;
+    text-align: left;
+}
+
+.error-details p {
+    margin: 0 0 12px 0;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.error-details ul {
+    margin: 0;
+    padding-left: 20px;
+    color: var(--text-secondary);
+}
+
+.error-details li {
+    margin-bottom: 8px;
+}
+
+.error-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.error-actions .btn {
+    min-width: 180px;
+}
+
+/* Manual Task Entry */
+.manual-task-entry {
+    padding: 32px;
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    margin: 32px 0;
+}
+
+.manual-task-entry h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.manual-task-entry p {
+    margin: 0 0 24px 0;
+    color: var(--text-secondary);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-tertiary);
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    margin-top: 24px;
+}
+
+.empty-state p {
+    margin: 0;
+    font-style: italic;
+}
+
 .folder-item:hover {
     background: #f8f9fa;
 }

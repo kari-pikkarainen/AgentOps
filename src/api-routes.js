@@ -590,7 +590,7 @@ async function generateTasksWithClaudeCode(req, res) {
         if (!claudePath) {
             return res.status(503).json({ 
                 error: 'Claude Code not found. Please install Claude Code CLI first.',
-                fallback: true
+                retry: true
             });
         }
         
@@ -636,11 +636,11 @@ async function generateTasksWithClaudeCode(req, res) {
                     reject(error);
                 });
                 
-                // Timeout after 30 seconds
+                // Timeout after 2 minutes
                 setTimeout(() => {
                     claudeProcess.kill();
                     reject(new Error('Claude Code task generation timed out'));
-                }, 30000);
+                }, 120000);
             });
             
             // Parse the AI response to extract JSON tasks
@@ -658,7 +658,7 @@ async function generateTasksWithClaudeCode(req, res) {
             res.status(500).json({
                 error: 'Failed to generate tasks with Claude Code',
                 details: processError.message,
-                fallback: true
+                retry: true
             });
         }
         
@@ -667,7 +667,7 @@ async function generateTasksWithClaudeCode(req, res) {
         res.status(500).json({
             error: 'Internal server error during task generation',
             details: error.message,
-            fallback: true
+            retry: true
         });
     }
 }
