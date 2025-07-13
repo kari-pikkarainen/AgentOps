@@ -2238,11 +2238,29 @@ This information will be used to generate tasks in Step 3.
 
     redoPlanning() {
         this.closeCompletionUI();
-        this.currentStep = 3; // Go back to task generation step
-        this.taskList = []; // Clear current tasks
-        this.codeAnalysisComplete = false; // Reset analysis flag
+        
+        // Reset execution state
+        this.isExecuting = false;
+        this.isPaused = false;
+        this.currentExecutingTask = null;
+        
+        // Reset to task generation step
+        this.currentStep = 3; 
+        this.taskList = []; 
+        this.codeAnalysisComplete = false;
+        
+        // Update UI to show correct step
+        this.updateStepView();
         this.updateStepIndicators();
-        this.generateTasks(); // Re-run task generation
+        
+        // Reset execution buttons
+        document.getElementById('start-execution-btn').style.display = 'none';
+        document.getElementById('next-btn').style.display = 'inline-block';
+        document.getElementById('pause-execution-btn').disabled = true;
+        document.getElementById('stop-execution-btn').disabled = true;
+        
+        // Re-run task generation
+        this.generateTasks();
         this.showNotification('Planning phase restarted - generating new tasks', 'info');
     }
 
