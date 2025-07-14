@@ -1241,10 +1241,11 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
             importance: 8
         });
 
+        // Get execution mode outside try/catch so it's accessible in both blocks
+        const executionMode = document.getElementById('execution-mode')?.value || 'auto';
+        
         try {
             // Execute task based on execution mode
-            const executionMode = document.getElementById('execution-mode').value;
-            
             if (executionMode === 'step-by-step') {
                 await this.executeTaskStepByStep(nextTask);
             } else {
@@ -1444,6 +1445,21 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
     }
 
     mergeTaskMetrics(existingMetrics, executionResult) {
+        // Handle case where executionResult is undefined
+        if (!executionResult) {
+            return {
+                ...existingMetrics,
+                filesCreated: 0,
+                filesModified: 0,
+                commands: [],
+                errorsEncountered: 0,
+                warningsGenerated: 0,
+                testsRun: 0,
+                testsPassed: 0,
+                duration: 0
+            };
+        }
+        
         return {
             ...existingMetrics,
             filesCreated: executionResult.filesCreated?.length || 0,
