@@ -738,8 +738,17 @@ async function executeClaudeWithPrint(claudePath, prompt, workingDir, options = 
         console.log('Prompt length:', prompt.length);
         console.log('Working directory:', workingDir);
         
-        // Build Claude arguments with optional --continue flag
+        // Build Claude arguments with optional --continue flag and tool permissions
         const args = ['--print', '--model', 'sonnet'];
+        
+        // Add tool permissions for file operations
+        args.push('--allowedTools', 'Write,Read,Bash,Edit');
+        
+        // Add directory access permission
+        if (workingDir && workingDir !== process.cwd()) {
+            args.push('--add-dir', workingDir);
+        }
+        
         const useContinue = options.useContinue !== undefined ? options.useContinue : shouldContinueSession(workingDir, options.isNewProject);
         
         if (useContinue) {
@@ -1423,7 +1432,12 @@ function buildTaskExecutionPrompt(task, projectContext) {
 TASK: ${task.title}
 ${task.description}
 
-Please change to the project directory and complete this task. Report what you accomplished.`;
+You have access to Write, Read, Bash, and Edit tools. Please use these tools to:
+1. Create any necessary files and directories in ${projectPath}
+2. Execute required commands using Bash tool
+3. Implement the task requirements completely
+
+Report what you accomplished with specific file paths and actions taken.`;
 }
 
 /**
