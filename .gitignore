@@ -144,6 +144,9 @@ ai-service-config.json
 .claude/
 claude-code-cache/
 
+# AgentOps runtime state files
+.agentops-states/
+
 # Testing
 test-results/
 playwright-report/
