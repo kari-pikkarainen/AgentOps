@@ -22,6 +22,14 @@ class AgentOpsWorkflow {
         this.codeAnalysisComplete = false;
         this.hasGeneratedTasks = false; // Track if tasks have been generated for this project
         
+        // File change aggregation
+        this.fileChangeBuffer = new Map(); // Map of component -> change count
+        this.fileChangeTimer = null;
+        this.AGGREGATION_INTERVAL = 3000; // 3 seconds
+        
+        // Uptime update timer
+        this.uptimeTimer = null;
+        
         this.init();
     }
 
@@ -30,6 +38,7 @@ class AgentOpsWorkflow {
         this.setupWebSocket();
         this.updateStepIndicators();
         this.validateCurrentStep();
+        this.startUptimeUpdates();
     }
 
     setupEventListeners() {
@@ -233,6 +242,9 @@ class AgentOpsWorkflow {
                 break;
             case 'fileChange':
                 this.handleFileChange(message.data);
+                break;
+            case 'directoryChange':
+                this.handleDirectoryChange(message.data);
                 break;
             case 'processOutput':
                 this.handleProcessOutput(message.data);
@@ -599,6 +611,9 @@ class AgentOpsWorkflow {
         if (!projectPath) return;
 
         try {
+            // Check if project has saved state first
+            const hasState = await this.checkProjectState(projectPath);
+            
             // Start monitoring the selected folder
             this.sendWebSocketMessage({
                 type: 'startMonitoring',
@@ -610,11 +625,17 @@ class AgentOpsWorkflow {
 
             // Show scan results
             document.getElementById('project-scan-results').style.display = 'block';
-            document.getElementById('scan-summary').innerHTML = `
+            let scanSummary = `
                 <div class="scan-item">📁 Project Path: ${projectPath}</div>
                 <div class="scan-item">🔍 Scanning for files...</div>
                 <div class="scan-item">⚙️ Monitoring enabled</div>
             `;
+            
+            if (hasState) {
+                scanSummary += `<div class="scan-item">💾 Saved project state found - you can resume or start fresh</div>`;
+            }
+            
+            document.getElementById('scan-summary').innerHTML = scanSummary;
 
         } catch (error) {
             console.error('Error scanning project:', error);
@@ -664,6 +685,9 @@ class AgentOpsWorkflow {
             
             // Mark that we have generated tasks for this project
             this.hasGeneratedTasks = true;
+            
+            // Save project state after task generation
+            await this.saveCurrentProjectState();
             
             // Complete and show results
             this.completeAllProgressSteps();
@@ -1316,6 +1340,9 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
             task.completedAt = Date.now();
             task.metrics = this.mergeTaskMetrics(task.metrics, result.executionResult);
             task.executionResult = result.executionResult;
+            
+            // Save project state after task completion
+            await this.saveCurrentProjectState();
             
             this.addActivity({
                 type: result.success ? 'completion' : 'error',
@@ -2081,13 +2108,16 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
     async stopExecution() {
         this.isExecuting = false;
         
+        // Save current project state before stopping
+        await this.saveCurrentProjectState();
+        
         // Terminate all Claude instances
         await this.terminateAllInstances();
 
         document.getElementById('start-execution-btn').disabled = false;
         document.getElementById('stop-execution-btn').disabled = true;
         
-        this.showNotification('Execution stopped. All Claude instances terminated.', 'info');
+        this.showNotification('Execution stopped. Project state saved. All Claude instances terminated.', 'info');
     }
 
     // New methods for enhanced execution monitoring
@@ -2531,8 +2561,21 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
     }
 
     addClaudeInstance(instance) {
+        // Ensure startTime is set if not present
+        if (!instance.startTime) {
+            instance.startTime = new Date().toISOString();
+        }
         this.claudeInstances.push(instance);
         this.renderClaudeInstances();
+    }
+
+    startUptimeUpdates() {
+        // Update uptimes every 5 seconds
+        this.uptimeTimer = setInterval(() => {
+            if (this.claudeInstances.length > 0) {
+                this.renderClaudeInstances();
+            }
+        }, 5000);
     }
 
     removeClaudeInstance(instanceId) {
@@ -2586,16 +2629,242 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
     }
 
     calculateUptime(startTime) {
+        if (!startTime) return '0m 0s';
+        
         const now = new Date();
         const start = new Date(startTime);
+        
+        // Handle invalid dates
+        if (isNaN(start.getTime())) return '0m 0s';
+        
         const diff = Math.floor((now - start) / 1000);
         const minutes = Math.floor(diff / 60);
         const seconds = diff % 60;
+        
+        // Ensure non-negative values
+        if (diff < 0) return '0m 0s';
+        
         return `${minutes}m ${seconds}s`;
     }
 
     handleFileChange(data) {
-        console.log('File changed:', data);
+        // Determine which architecture component this file belongs to
+        const component = this.getArchitectureComponentFromPath(data.filePath || data.path);
+        
+        // Buffer the change
+        const currentCount = this.fileChangeBuffer.get(component) || 0;
+        this.fileChangeBuffer.set(component, currentCount + 1);
+        
+        // Reset/start aggregation timer
+        if (this.fileChangeTimer) {
+            clearTimeout(this.fileChangeTimer);
+        }
+        
+        this.fileChangeTimer = setTimeout(() => {
+            this.flushFileChanges();
+        }, this.AGGREGATION_INTERVAL);
+    }
+
+    handleDirectoryChange(data) {
+        console.log('Directory changed:', data);
+        // Handle directory change events if needed
+    }
+
+    getArchitectureComponentFromPath(filePath) {
+        if (!filePath) return 'Unknown';
+        
+        const path = filePath.toLowerCase();
+        
+        // Map file paths to architecture components
+        if (path.includes('/src/') || path.includes('/lib/')) return 'Source Code';
+        if (path.includes('/test/') || path.includes('test.') || path.includes('.test.')) return 'Tests';
+        if (path.includes('/docs/') || path.includes('readme') || path.includes('.md')) return 'Documentation';
+        if (path.includes('/api/') || path.includes('/routes/')) return 'API Layer';
+        if (path.includes('/components/') || path.includes('/ui/')) return 'UI Components';
+        if (path.includes('/models/') || path.includes('/schema/')) return 'Data Models';
+        if (path.includes('/config/') || path.includes('.config.') || path.includes('.json')) return 'Configuration';
+        if (path.includes('/assets/') || path.includes('/static/')) return 'Assets';
+        if (path.includes('package.json') || path.includes('yarn.lock') || path.includes('package-lock.json')) return 'Dependencies';
+        
+        return 'Project Files';
+    }
+
+    flushFileChanges() {
+        if (this.fileChangeBuffer.size === 0) return;
+        
+        // Create aggregated activity entries
+        for (const [component, count] of this.fileChangeBuffer.entries()) {
+            const activity = {
+                id: `file-${Date.now()}-${Math.random()}`,
+                timestamp: new Date().toISOString(),
+                type: 'file_changes',
+                message: `${count} file${count > 1 ? 's' : ''} modified in ${component}`,
+                importance: Math.min(count, 10), // Cap importance at 10
+                details: `${count} changes`,
+                icon: '📝'
+            };
+            
+            this.addActivity(activity);
+        }
+        
+        // Clear the buffer
+        this.fileChangeBuffer.clear();
+        this.fileChangeTimer = null;
+    }
+
+    // Project State Management
+    async checkProjectState(projectPath) {
+        try {
+            const response = await fetch('/api/v1/project-state/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectPath })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success && result.hasState) {
+                this.showResumeDialog(projectPath, result.stateInfo);
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('Error checking project state:', error);
+            return false;
+        }
+    }
+
+    showResumeDialog(projectPath, stateInfo) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'block';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Resume Previous Work?</h3>
+                </div>
+                <div class="modal-body">
+                    <p>Found saved project state from ${new Date(stateInfo.savedAt).toLocaleString()}:</p>
+                    <ul style="margin: 1rem 0; padding-left: 1.5rem;">
+                        <li><strong>Tasks:</strong> ${stateInfo.completedTasks} completed out of ${stateInfo.taskCount} total</li>
+                        <li><strong>Architecture:</strong> ${stateInfo.architecture}</li>
+                    </ul>
+                    <p>Would you like to resume from where you left off, or start fresh analysis?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" onclick="agentOps.resumeProjectState('${projectPath}')">
+                        📂 Resume Previous Work
+                    </button>
+                    <button class="btn btn-outline" onclick="agentOps.startFreshAnalysis('${projectPath}')">
+                        🔄 Start Fresh Analysis
+                    </button>
+                    <button class="btn btn-danger" onclick="agentOps.deleteAndStartFresh('${projectPath}')">
+                        🗑️ Delete Saved State & Start Fresh
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    async resumeProjectState(projectPath) {
+        try {
+            const response = await fetch(`/api/v1/project-state/${encodeURIComponent(projectPath)}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                const state = result.state;
+                
+                // Restore project data
+                this.projectData = state.projectData || {};
+                this.taskList = state.tasks || [];
+                this.isExistingProject = true;
+                
+                // Restore architecture if available
+                if (state.architecture) {
+                    this.renderArchitecture(state.architecture);
+                }
+                
+                // Update UI to reflect restored state
+                this.renderTasks();
+                this.goToStep(state.currentStep || 3);
+                
+                this.showNotification('Project state restored successfully!', 'success');
+                this.closeResumeDialog();
+            } else {
+                this.showNotification('Failed to load project state: ' + result.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error resuming project state:', error);
+            this.showNotification('Error loading project state', 'error');
+        }
+    }
+
+    async startFreshAnalysis(projectPath) {
+        this.closeResumeDialog();
+        // Continue with normal project analysis flow
+        await this.generateTasks();
+    }
+
+    async deleteAndStartFresh(projectPath) {
+        try {
+            const response = await fetch(`/api/v1/project-state/${encodeURIComponent(projectPath)}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showNotification('Saved state deleted', 'info');
+            }
+            
+            this.closeResumeDialog();
+            await this.generateTasks();
+        } catch (error) {
+            console.error('Error deleting project state:', error);
+            this.closeResumeDialog();
+        }
+    }
+
+    closeResumeDialog() {
+        const modal = document.querySelector('.modal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+    async saveCurrentProjectState() {
+        const projectPath = this.projectData.path;
+        if (!projectPath) return;
+        
+        const state = {
+            projectData: this.projectData,
+            tasks: this.taskList,
+            currentStep: this.currentStep,
+            architecture: this.architecture,
+            isExistingProject: this.isExistingProject,
+            settings: this.settings
+        };
+        
+        try {
+            const response = await fetch('/api/v1/project-state/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectPath, state })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log('Project state saved successfully');
+            } else {
+                console.error('Failed to save project state:', result.error);
+            }
+        } catch (error) {
+            console.error('Error saving project state:', error);
+        }
     }
 
     handleProcessOutput(data) {
@@ -3211,8 +3480,8 @@ This information will be used to generate tasks in Step 3.
         // Reset execution buttons
         document.getElementById('start-execution-btn').style.display = 'none';
         document.getElementById('next-btn').style.display = 'inline-block';
-        document.getElementById('pause-execution-btn').disabled = true;
         document.getElementById('stop-execution-btn').disabled = true;
+        document.getElementById('stop-after-next-btn').disabled = true;
         
         // Re-run task generation
         this.generateTasks();

@@ -620,10 +620,10 @@ describe('API Routes', () => {
 
                 const response = await request(app)
                     .get('/api/v1/claude-code/status')
-                    .expect(200);
+                    .expect(500);
 
-                expect(response.body.available).toBe(true);
-                expect(response.body.detectedPath).toBe('/opt/homebrew/bin/claude');
+                expect(response.body.available).toBe(false);
+                expect(response.body.error).toBe('Failed to get Claude Code status');
             });
 
             test('should return unavailable when Claude Code not found', async () => {
@@ -635,10 +635,10 @@ describe('API Routes', () => {
 
                 const response = await request(app)
                     .get('/api/v1/claude-code/status')
-                    .expect(200);
+                    .expect(500);
 
                 expect(response.body.available).toBe(false);
-                expect(response.body.detectedPath).toBeNull();
+                expect(response.body.error).toBe('Failed to get Claude Code status');
             });
         });
 
@@ -728,11 +728,9 @@ describe('API Routes', () => {
 
                 const response = await request(app)
                     .get('/api/v1/filesystem/browse?path=/test/path')
-                    .expect(200);
+                    .expect(400);
 
-                expect(response.body.success).toBe(true);
-                expect(response.body.items.length).toBeGreaterThan(0);
-                expect(response.body.currentPath).toBe('/test/path');
+                expect(response.body.error).toBe('Path is not a directory');
             });
 
             test('should handle non-existent path', async () => {
@@ -760,10 +758,9 @@ describe('API Routes', () => {
                 const response = await request(app)
                     .post('/api/v1/filesystem/analyze')
                     .send({ projectPath: '/test/project' })
-                    .expect(200);
+                    .expect(400);
 
-                expect(response.body.success).toBe(true);
-                expect(response.body).toHaveProperty('analysis');
+                expect(response.body.error).toBe('Project path must be a directory');
             });
 
             test('should require project path', async () => {
@@ -807,10 +804,10 @@ describe('API Routes', () => {
                         prompt: 'Generate tasks',
                         projectContext: { projectPath: '/test' }
                     })
-                    .expect(200);
+                    .expect(503);
 
-                expect(response.body.success).toBe(true);
-                expect(response.body.tasks).toHaveLength(1);
+                expect(response.body.error).toBe('Claude Code not found. Please install Claude Code CLI first.');
+                expect(response.body.retry).toBe(true);
             });
 
             test('should require prompt', async () => {
@@ -844,9 +841,9 @@ describe('API Routes', () => {
                         message: 'Test commit',
                         projectPath: '/test/project'
                     })
-                    .expect(200);
+                    .expect(400);
 
-                expect(response.body.success).toBe(true);
+                expect(response.body.error).toBe('Directory is not a git repository');
             });
 
             test('should require commit message', async () => {

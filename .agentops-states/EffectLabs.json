@@ -1,0 +1,100 @@
+{
+  "projectPath": "/Users/karipikkarainen/Devel/EffectLabs",
+  "savedAt": "2025-07-14T04:32:55.155Z",
+  "version": "1.0",
+  "projectData": {
+    "type": "existing",
+    "name": "effect-labs",
+    "path": "/Users/karipikkarainen/Devel/EffectLabs",
+    "analysis": {
+      "projectName": "effect-labs",
+      "projectPath": "/Users/karipikkarainen/Devel/EffectLabs",
+      "type": "Node.js Project",
+      "technologies": [
+        "JavaScript",
+        "Node.js",
+        "TypeScript"
+      ],
+      "fileCount": 13,
+      "status": "Active project - ready for continued development"
+    }
+  },
+  "tasks": [
+    {
+      "id": 1752467574546,
+      "title": "Add comprehensive error handling patterns",
+      "description": "Implement proper error types and structured error handling throughout the application. Add custom error classes and standardize error propagation patterns using Effect's error handling capabilities.",
+      "priority": "high",
+      "estimated": "1h",
+      "category": "feature",
+      "selected": true,
+      "architectureArea": "Application Framework"
+    },
+    {
+      "id": 1752467574548,
+      "title": "Add comprehensive unit tests for program.ts",
+      "description": "Create unit tests for all functions in program.ts including calculateFactorial, processUserData, and createWelcomeMessage. Ensure edge cases and error scenarios are covered.",
+      "priority": "high",
+      "estimated": "1h",
+      "category": "feature",
+      "selected": true,
+      "architectureArea": "Frontend/UI Layer"
+    },
+    {
+      "id": 1752467574547,
+      "title": "Implement async data fetching utilities",
+      "description": "Create Effect-based utilities for HTTP requests, file I/O, and database operations. Add retry logic, timeout handling, and proper resource management for external dependencies.",
+      "priority": "medium",
+      "estimated": "1h",
+      "category": "feature",
+      "selected": true,
+      "architectureArea": "Data Layer"
+    },
+    {
+      "id": 1752467574549,
+      "title": "Implement configuration management system",
+      "description": "Add environment-based configuration using Effect's Layer system. Create type-safe configuration loading with validation and default values for different deployment environments.",
+      "priority": "medium",
+      "estimated": "1h",
+      "category": "feature",
+      "selected": false,
+      "architectureArea": "Infrastructure Layer"
+    },
+    {
+      "id": 1752467574550,
+      "title": "Add structured logging with Effect",
+      "description": "Replace Console.log with proper structured logging using Effect's logging capabilities. Implement log levels, correlation IDs, and JSON-formatted output for better observability.",
+      "priority": "medium",
+      "estimated": "1h",
+      "category": "feature",
+      "selected": false,
+      "architectureArea": "Core Setup"
+    },
+    {
+      "id": 1752467574551,
+      "title": "Create documentation and usage examples",
+      "description": "Generate comprehensive README with Effect patterns, API documentation, and practical examples. Add inline code documentation and usage guides for new developers.",
+      "priority": "low",
+      "estimated": "1h",
+      "category": "feature",
+      "selected": false,
+      "architectureArea": "Frontend/UI Layer"
+    }
+  ],
+  "currentStep": 3,
+  "isExistingProject": true,
+  "settings": {
+    "aiAgent": {
+      "provider": "claude-code",
+      "claudeCodePath": "",
+      "claudeCodeArgs": "--model sonnet --max-tokens 8000",
+      "maxConcurrentInstances": 3,
+      "autoRestartFailed": true
+    },
+    "general": {
+      "activityHistoryLimit": 1000,
+      "autoSaveWorkflows": true,
+      "showDebugInfo": false
+    }
+  }
+}

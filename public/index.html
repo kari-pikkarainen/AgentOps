@@ -535,6 +535,15 @@ Your project description...
                     
                     <div class="execution-layout">
                         <div class="left-panel">
+                            <div class="architecture-section">
+                                <h3>Project Architecture</h3>
+                                <div id="architecture-diagram" class="architecture-diagram">
+                                    <!-- Architecture layers will be rendered here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="middle-panel">
                             <div class="task-progress-section">
                                 <h3>Task Progress</h3>
                                 <div id="task-progress-list" class="task-progress-list">
@@ -542,15 +551,8 @@ Your project description...
                                 </div>
                             </div>
                             
-                            <div class="architecture-section">
-                                <h3>Project Architecture</h3>
-                                <div id="architecture-diagram" class="architecture-diagram">
-                                    <!-- Architecture layers will be rendered here -->
-                                </div>
-                            </div>
-                            
                             <div class="claude-instances-section">
-                                <h3>Claude Instances</h3>
+                                <h3>Running Processes</h3>
                                 <div id="claude-instances-list" class="instances-list">
                                     <!-- Claude instances will be populated here -->
                                 </div>
@@ -559,13 +561,12 @@ Your project description...
                         
                         <div class="right-panel">
                             <div class="live-activity-section">
-                                <h3>Live Activity Feed</h3>
+                                <h3>Live Feed</h3>
                                 <div class="activity-filters">
                                     <button class="filter-btn active" data-filter="all">All</button>
-                                    <button class="filter-btn" data-filter="command">Commands</button>
-                                    <button class="filter-btn" data-filter="file_change">Files</button>
-                                    <button class="filter-btn" data-filter="git_command">Git</button>
                                     <button class="filter-btn" data-filter="error">Errors</button>
+                                    <button class="filter-btn" data-filter="command">Cmd</button>
+                                    <button class="filter-btn" data-filter="file_change">Files</button>
                                 </div>
                                 <div id="live-activity-timeline" class="live-activity-timeline">
                                     <!-- Live activities will be populated here -->

@@ -17,6 +17,82 @@ const { spawn } = require('child_process');
 const projectSessions = new Map();
 const SESSION_TIMEOUT = 60 * 60 * 1000; // 1 hour timeout
 
+// Project state persistence
+const projectStates = new Map();
+const PROJECT_STATE_DIR = path.join(process.cwd(), '.agentops-states');
+
+// Ensure state directory exists
+if (!fs.existsSync(PROJECT_STATE_DIR)) {
+    fs.mkdirSync(PROJECT_STATE_DIR, { recursive: true });
+}
+
+/**
+ * Project state persistence functions
+ */
+function getProjectStateFilePath(projectPath) {
+    const projectName = path.basename(projectPath);
+    const sanitizedName = projectName.replace(/[^a-zA-Z0-9-_]/g, '_');
+    return path.join(PROJECT_STATE_DIR, `${sanitizedName}.json`);
+}
+
+function saveProjectState(projectPath, state) {
+    try {
+        const stateFilePath = getProjectStateFilePath(projectPath);
+        const stateData = {
+            projectPath: projectPath,
+            savedAt: new Date().toISOString(),
+            version: '1.0',
+            ...state
+        };
+        
+        fs.writeFileSync(stateFilePath, JSON.stringify(stateData, null, 2));
+        projectStates.set(projectPath, stateData);
+        console.log('Project state saved for:', projectPath);
+        return true;
+    } catch (error) {
+        console.error('Failed to save project state:', error);
+        return false;
+    }
+}
+
+function loadProjectState(projectPath) {
+    try {
+        const stateFilePath = getProjectStateFilePath(projectPath);
+        
+        if (!fs.existsSync(stateFilePath)) {
+            return null;
+        }
+        
+        const stateData = JSON.parse(fs.readFileSync(stateFilePath, 'utf8'));
+        projectStates.set(projectPath, stateData);
+        console.log('Project state loaded for:', projectPath);
+        return stateData;
+    } catch (error) {
+        console.error('Failed to load project state:', error);
+        return null;
+    }
+}
+
+function hasProjectState(projectPath) {
+    const stateFilePath = getProjectStateFilePath(projectPath);
+    return fs.existsSync(stateFilePath);
+}
+
+function deleteProjectState(projectPath) {
+    try {
+        const stateFilePath = getProjectStateFilePath(projectPath);
+        if (fs.existsSync(stateFilePath)) {
+            fs.unlinkSync(stateFilePath);
+        }
+        projectStates.delete(projectPath);
+        console.log('Project state deleted for:', projectPath);
+        return true;
+    } catch (error) {
+        console.error('Failed to delete project state:', error);
+        return false;
+    }
+}
+
 /**
  * Session management functions
  */
@@ -139,6 +215,12 @@ function configureApiRoutes(app) {
     
     // Architecture analysis routes
     app.post('/api/v1/claude-code/generate-architecture', generateArchitecture);
+    
+    // Project state management routes
+    app.get('/api/v1/project-state/:projectPath(*)', getProjectState);
+    app.post('/api/v1/project-state/save', saveProjectStateAPI);
+    app.post('/api/v1/project-state/check', checkProjectState);
+    app.delete('/api/v1/project-state/:projectPath(*)', deleteProjectStateAPI);
 }
 
 // Claude Code Instance Management Handlers
@@ -808,21 +890,26 @@ async function executeClaudeWithPrint(claudePath, prompt, workingDir, options = 
             console.log('Output length:', output.length);
             
             if (code === 0) {
-                try {
-                    // Parse the output
-                    const tasks = extractTasksFromAIResponse(output);
-                    console.log('Parsed tasks count:', tasks.length);
-                    
-                    if (tasks.length === 0) {
-                        console.log('Full Claude output for debugging:', output);
-                        reject(new Error('No valid tasks found in Claude response'));
-                    } else {
-                        resolve(tasks);
+                // Check if we should return raw output or parsed tasks
+                if (options.returnRawOutput) {
+                    resolve(output);
+                } else {
+                    try {
+                        // Parse the output for tasks
+                        const tasks = extractTasksFromAIResponse(output);
+                        console.log('Parsed tasks count:', tasks.length);
+                        
+                        if (tasks.length === 0) {
+                            console.log('Full Claude output for debugging:', output);
+                            reject(new Error('No valid tasks found in Claude response'));
+                        } else {
+                            resolve(tasks);
+                        }
+                    } catch (parseError) {
+                        console.error('Parse error:', parseError);
+                        console.log('Raw output that failed to parse:', output);
+                        reject(new Error(`Failed to parse Claude response: ${parseError.message}`));
                     }
-                } catch (parseError) {
-                    console.error('Parse error:', parseError);
-                    console.log('Raw output that failed to parse:', output);
-                    reject(new Error(`Failed to parse Claude response: ${parseError.message}`));
                 }
             } else {
                 console.log('Claude failed with output:', output);
@@ -1337,7 +1424,12 @@ module.exports = {
     executeClaudeWithPrint,
     buildTaskExecutionPrompt,
     shouldContinueSession,
-    updateSessionActivity
+    updateSessionActivity,
+    // Project state management
+    saveProjectState,
+    loadProjectState,
+    hasProjectState,
+    deleteProjectState
 };
 
 /**
@@ -1380,7 +1472,8 @@ async function executeTask(req, res) {
             result = await executeClaudeWithPrint(claudePath, taskPrompt, projectPath, {
                 useContinue,
                 timeout: executionOptions.timeout || 300000, // 5 minutes default
-                model: executionOptions.model || 'sonnet'
+                model: executionOptions.model || 'sonnet',
+                returnRawOutput: true // For task execution, we need raw output for parsing
             });
         } catch (claudeError) {
             console.error('Claude CLI execution error:', claudeError.message);
@@ -1393,7 +1486,8 @@ async function executeTask(req, res) {
                     result = await executeClaudeWithPrint(claudePath, simplePrompt, projectPath, {
                         useContinue: useContinue, // Use same session continuity setting as first attempt
                         timeout: executionOptions.timeout || 300000,
-                        model: executionOptions.model || 'sonnet'
+                        model: executionOptions.model || 'sonnet',
+                        returnRawOutput: true // For task execution, we need raw output for parsing
                     });
                 } catch (retryError) {
                     throw new Error(`Claude CLI failed: ${claudeError.message}. Retry also failed: ${retryError.message}`);
@@ -1586,8 +1680,9 @@ async function generateArchitecture(req, res) {
         try {
             const result = await executeClaudeWithPrint(claudePath, architecturePrompt, projectPath, {
                 useContinue,
-                timeout: 15000, // 15 seconds
-                model: 'sonnet'
+                timeout: 60000, // 60 seconds for architecture analysis
+                model: 'sonnet',
+                returnRawOutput: true // For architecture analysis, we need raw output for parsing
             });
             // Parse architecture from Claude response
             architecture = parseArchitectureResponse(result, projectContext);
@@ -1896,4 +1991,127 @@ function generateNewProjectArchitecture(projectName) {
         ],
         overview: `${projectName} will use a modular architecture emphasizing maintainability and testability.`
     };
+}
+
+// Project State Management API Handlers
+function getProjectState(req, res) {
+    try {
+        const projectPath = decodeURIComponent(req.params.projectPath);
+        const state = loadProjectState(projectPath);
+        
+        if (!state) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'No saved state found for this project' 
+            });
+        }
+        
+        res.json({
+            success: true,
+            state: state,
+            hasState: true
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to load project state', 
+            details: error.message 
+        });
+    }
+}
+
+function saveProjectStateAPI(req, res) {
+    try {
+        const { projectPath, state } = req.body;
+        
+        if (!projectPath) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Project path is required' 
+            });
+        }
+        
+        const success = saveProjectState(projectPath, state);
+        
+        if (success) {
+            res.json({
+                success: true,
+                message: 'Project state saved successfully'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: 'Failed to save project state'
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to save project state', 
+            details: error.message 
+        });
+    }
+}
+
+function checkProjectState(req, res) {
+    try {
+        const { projectPath } = req.body;
+        
+        if (!projectPath) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Project path is required' 
+            });
+        }
+        
+        const hasState = hasProjectState(projectPath);
+        let stateInfo = null;
+        
+        if (hasState) {
+            const state = loadProjectState(projectPath);
+            stateInfo = {
+                savedAt: state?.savedAt,
+                taskCount: state?.tasks?.length || 0,
+                completedTasks: state?.tasks?.filter(t => t.status === 'completed').length || 0,
+                architecture: state?.architecture ? 'Available' : 'Not saved'
+            };
+        }
+        
+        res.json({
+            success: true,
+            hasState: hasState,
+            stateInfo: stateInfo
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to check project state', 
+            details: error.message 
+        });
+    }
+}
+
+function deleteProjectStateAPI(req, res) {
+    try {
+        const projectPath = decodeURIComponent(req.params.projectPath);
+        const success = deleteProjectState(projectPath);
+        
+        if (success) {
+            res.json({
+                success: true,
+                message: 'Project state deleted successfully'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: 'Failed to delete project state'
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to delete project state', 
+            details: error.message 
+        });
+    }
 }
