@@ -772,13 +772,33 @@ async function executeClaudeWithPrint(claudePath, prompt, workingDir, options = 
         let errorOutput = '';
         
         claudeProcess.stdout.on('data', (data) => {
-            output += data.toString();
-            console.log('Claude stdout chunk received:', data.toString().substring(0, 100) + '...');
+            const chunk = data.toString();
+            output += chunk;
+            console.log('Claude stdout chunk received:', chunk.substring(0, 100) + '...');
+            
+            // Call streaming callback if provided
+            if (options.onProgress && typeof options.onProgress === 'function') {
+                options.onProgress({
+                    type: 'stdout',
+                    data: chunk,
+                    timestamp: Date.now()
+                });
+            }
         });
         
         claudeProcess.stderr.on('data', (data) => {
-            errorOutput += data.toString();
-            console.log('Claude stderr:', data.toString());
+            const chunk = data.toString();
+            errorOutput += chunk;
+            console.log('Claude stderr:', chunk);
+            
+            // Call streaming callback for errors too
+            if (options.onProgress && typeof options.onProgress === 'function') {
+                options.onProgress({
+                    type: 'stderr',
+                    data: chunk,
+                    timestamp: Date.now()
+                });
+            }
         });
         
         claudeProcess.on('close', (code) => {
@@ -1312,7 +1332,12 @@ module.exports = {
     // Task execution handlers
     executeTask,
     // Architecture analysis handlers
-    generateArchitecture
+    generateArchitecture,
+    // Streaming utilities for WebSocket handler
+    executeClaudeWithPrint,
+    buildTaskExecutionPrompt,
+    shouldContinueSession,
+    updateSessionActivity
 };
 
 /**

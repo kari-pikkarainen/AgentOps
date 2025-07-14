@@ -219,6 +219,14 @@ class WebSocketHandler {
                 this.handleClearActivities(ws);
                 break;
                 
+            case 'executeTaskStreaming':
+                this.handleExecuteTaskStreaming(ws, parsedMessage);
+                break;
+                
+            case 'directoryChange':
+                this.handleDirectoryChange(ws, parsedMessage);
+                break;
+                
             default:
                 this.sendMessage(ws, {
                     type: 'error',
@@ -351,6 +359,120 @@ class WebSocketHandler {
     sendMessage(ws, data) {
         if (ws.readyState === ws.OPEN) {
             ws.send(JSON.stringify(data));
+        }
+    }
+
+    /**
+     * Handle streaming task execution
+     * @param {WebSocket} ws - WebSocket connection
+     * @param {Object} message - Task execution message
+     */
+    async handleExecuteTaskStreaming(ws, message) {
+        try {
+            const { task, projectContext, executionOptions = {} } = message;
+            
+            if (!task) {
+                this.sendMessage(ws, {
+                    type: 'taskError',
+                    data: { error: 'Task is required' }
+                });
+                return;
+            }
+            
+            // Import the required modules
+            const { executeClaudeWithPrint, buildTaskExecutionPrompt, shouldContinueSession, updateSessionActivity } = require('./api-routes');
+            
+            const projectPath = projectContext?.projectPath || process.cwd();
+            const claudePath = projectContext?.claudePath || '/opt/homebrew/bin/claude';
+            
+            // Build task execution prompt
+            const taskPrompt = buildTaskExecutionPrompt(task, projectContext);
+            
+            // Session management
+            const useContinue = shouldContinueSession(projectPath, false);
+            updateSessionActivity(projectPath);
+            
+            // Send task started event
+            this.sendMessage(ws, {
+                type: 'taskStarted',
+                data: {
+                    taskId: task.id,
+                    title: task.title,
+                    projectPath: projectPath,
+                    sessionContinued: useContinue
+                }
+            });
+            
+            // Execute with streaming progress
+            try {
+                const result = await executeClaudeWithPrint(claudePath, taskPrompt, projectPath, {
+                    useContinue,
+                    timeout: executionOptions.timeout || 300000,
+                    model: executionOptions.model || 'sonnet',
+                    onProgress: (progressData) => {
+                        // Stream progress to frontend
+                        this.sendMessage(ws, {
+                            type: 'taskProgress',
+                            data: {
+                                taskId: task.id,
+                                progress: progressData
+                            }
+                        });
+                    }
+                });
+                
+                // Send completion
+                this.sendMessage(ws, {
+                    type: 'taskCompleted',
+                    data: {
+                        taskId: task.id,
+                        result: result,
+                        success: true
+                    }
+                });
+                
+            } catch (error) {
+                // Send error
+                this.sendMessage(ws, {
+                    type: 'taskError',
+                    data: {
+                        taskId: task.id,
+                        error: error.message,
+                        success: false
+                    }
+                });
+            }
+            
+        } catch (error) {
+            console.error('Error in streaming task execution:', error);
+            this.sendMessage(ws, {
+                type: 'taskError',
+                data: { error: error.message }
+            });
+        }
+    }
+
+    /**
+     * Handle directory change notifications
+     * @param {WebSocket} ws - WebSocket connection
+     * @param {Object} message - Directory change message
+     */
+    handleDirectoryChange(ws, message) {
+        try {
+            // Simply acknowledge the directory change
+            this.sendMessage(ws, {
+                type: 'response',
+                data: {
+                    success: true,
+                    message: 'Directory change acknowledged'
+                }
+            });
+        } catch (error) {
+            console.error('Error handling directory change:', error);
+            this.sendMessage(ws, {
+                type: 'error',
+                data: { error: error.message }
+            });
         }
     }
 
