@@ -118,11 +118,26 @@ Current technology stack:
 
 ### Claude Code Communication
 The system integrates with Claude Code instances through:
-- Process spawning and management
+- Process spawning and management with full tool permissions
 - Standard I/O stream capture and parsing
 - Command injection and response handling
 - File system change monitoring
 - Real-time activity streaming
+
+#### Tool Permissions & Security
+**CRITICAL**: Claude CLI requires explicit tool permissions for file operations:
+```javascript
+// Required for task execution
+const args = ['--print', '--model', 'sonnet'];
+args.push('--allowedTools', 'Write,Read,Bash,Edit');  // Enable file operations
+args.push('--add-dir', workingDir);                   // Grant directory access
+```
+
+**Important Notes:**
+- Without `--allowedTools`, Claude cannot create/modify files
+- Without `--add-dir`, Claude cannot access project directories
+- Tasks will appear to "complete" but no files will be created without proper permissions
+- Always verify tool permissions are granted for actual file operations
 
 ### File System Monitoring
 - Project root directory monitoring
@@ -282,3 +297,46 @@ When adding new functionality:
 4. Maintain minimum 80% coverage threshold (currently exceeding at 88.46%)
 5. Ensure branch coverage remains above 80% (currently at 84%)
 6. Update test documentation in this file
+
+## Troubleshooting Guide
+
+### Common Issues and Solutions
+
+#### Issue: Tasks Complete But No Files Created
+**Symptoms:**
+- Claude CLI reports task completion
+- No actual files appear in project directory
+- Task execution logs show success but empty results
+
+**Root Cause:** Missing Claude CLI tool permissions
+
+**Solution:**
+```javascript
+// Ensure these flags are present in Claude CLI invocation:
+args.push('--allowedTools', 'Write,Read,Bash,Edit');
+args.push('--add-dir', projectPath);
+```
+
+**Verification:**
+```bash
+# Test tool permissions manually:
+echo 'Use Write tool to create test.txt' | claude --print --model sonnet --allowedTools Write --add-dir /path/to/project
+```
+
+#### Issue: Claude CLI Timeout/Hanging
+**Symptoms:**
+- Tasks timeout after 5 minutes
+- No output from Claude CLI
+- Process needs to be killed
+
+**Common Causes:**
+1. Missing tool permissions (Claude waits for permission grant)
+2. Incorrect working directory
+3. Malformed prompts
+4. Session state conflicts
+
+**Solutions:**
+1. Verify `--allowedTools` and `--add-dir` flags
+2. Ensure project path is correctly set in `buildProjectContext()`
+3. Check prompt formatting in `buildTaskExecutionPrompt()`
+4. Reset session state if needed
