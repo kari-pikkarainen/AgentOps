@@ -1546,12 +1546,14 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
         try {
             const projectContext = this.buildProjectContext();
             
-            // Generate architecture analysis using Claude CLI
-            // Architecture generation can take up to 60 seconds, use longer timeout
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 70000); // 70 seconds
+            // Show progressive analysis UI
+            this.showProgressiveAnalysisUI();
             
-            const response = await fetch('/api/v1/claude-code/generate-architecture', {
+            // Use progressive analysis endpoint for better timeout handling and progress tracking
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes total timeout
+            
+            const response = await fetch('/api/v1/claude-code/progressive-analysis', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1566,18 +1568,186 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
             
             const data = await response.json();
             
-            // Return architecture whether successful or not (API provides fallback)
-            return data.architecture || this.generateFallbackArchitecture();
+            // Hide progressive analysis UI
+            this.hideProgressiveAnalysisUI();
+            
+            if (data.success) {
+                // Log analysis stages for debugging
+                if (data.progress && data.progress.stages) {
+                    console.log('Analysis completed with stages:', data.progress.stages);
+                }
+                return data.architecture || this.generateFallbackArchitecture();
+            } else {
+                console.warn('Progressive analysis failed, using fallback:', data.error);
+                return data.architecture || this.generateFallbackArchitecture();
+            }
             
         } catch (error) {
+            this.hideProgressiveAnalysisUI();
+            
             if (error.name === 'AbortError') {
-                console.error('Architecture generation timed out after 70 seconds');
+                console.error('Progressive analysis timed out after 2 minutes');
             } else {
-                console.error('Architecture analysis failed:', error);
+                console.error('Progressive analysis failed:', error);
             }
             // Return fallback architecture
             return this.generateFallbackArchitecture();
         }
+    }
+
+    showProgressiveAnalysisUI() {
+        // Find or create progress container
+        let progressContainer = document.getElementById('progressive-analysis-progress');
+        if (!progressContainer) {
+            progressContainer = document.createElement('div');
+            progressContainer.id = 'progressive-analysis-progress';
+            progressContainer.className = 'progressive-analysis-overlay';
+            progressContainer.innerHTML = `
+                <div class="progressive-analysis-modal">
+                    <div class="progressive-analysis-header">
+                        <h3>Analyzing Project Architecture</h3>
+                        <p>Breaking down analysis into manageable stages...</p>
+                    </div>
+                    <div class="progressive-analysis-stages">
+                        <div class="analysis-stage" data-stage="0">
+                            <div class="stage-icon">📁</div>
+                            <div class="stage-content">
+                                <div class="stage-name">File System Scan</div>
+                                <div class="stage-description">Scanning project files and structure</div>
+                                <div class="stage-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill"></div>
+                                    </div>
+                                    <span class="progress-text">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="analysis-stage" data-stage="1">
+                            <div class="stage-icon">🔧</div>
+                            <div class="stage-content">
+                                <div class="stage-name">Technology Detection</div>
+                                <div class="stage-description">Identifying technologies and frameworks</div>
+                                <div class="stage-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill"></div>
+                                    </div>
+                                    <span class="progress-text">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="analysis-stage" data-stage="2">
+                            <div class="stage-icon">🏗️</div>
+                            <div class="stage-content">
+                                <div class="stage-name">Architecture Analysis</div>
+                                <div class="stage-description">Analyzing project architecture and patterns</div>
+                                <div class="stage-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill"></div>
+                                    </div>
+                                    <span class="progress-text">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="analysis-stage" data-stage="3">
+                            <div class="stage-icon">📋</div>
+                            <div class="stage-content">
+                                <div class="stage-name">Finalization</div>
+                                <div class="stage-description">Generating final analysis report</div>
+                                <div class="stage-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill"></div>
+                                    </div>
+                                    <span class="progress-text">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overall-progress">
+                        <div class="overall-progress-bar">
+                            <div class="overall-progress-fill"></div>
+                        </div>
+                        <div class="overall-progress-text">Starting analysis...</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(progressContainer);
+        }
+        
+        progressContainer.style.display = 'flex';
+        
+        // Simulate progressive updates for existing analysis (since we don't have real-time updates yet)
+        this.simulateProgressiveUpdates();
+    }
+
+    hideProgressiveAnalysisUI() {
+        const progressContainer = document.getElementById('progressive-analysis-progress');
+        if (progressContainer) {
+            progressContainer.style.display = 'none';
+        }
+    }
+
+    simulateProgressiveUpdates() {
+        // Simulate the 4 stages with realistic timing
+        const stages = [
+            { duration: 3000, name: 'File System Scan' },     // 3 seconds
+            { duration: 4000, name: 'Technology Detection' }, // 4 seconds  
+            { duration: 8000, name: 'Architecture Analysis' }, // 8 seconds (main stage)
+            { duration: 2000, name: 'Finalization' }          // 2 seconds
+        ];
+        
+        let currentStage = 0;
+        let overallProgress = 0;
+        
+        const updateStage = (stageIndex, progress) => {
+            const stageElement = document.querySelector(`[data-stage="${stageIndex}"]`);
+            if (stageElement) {
+                const progressFill = stageElement.querySelector('.progress-fill');
+                const progressText = stageElement.querySelector('.progress-text');
+                
+                if (progressFill && progressText) {
+                    progressFill.style.width = `${progress}%`;
+                    progressText.textContent = `${progress}%`;
+                }
+                
+                if (progress === 100) {
+                    stageElement.classList.add('completed');
+                }
+            }
+        };
+        
+        const updateOverallProgress = (progress, text) => {
+            const overallFill = document.querySelector('.overall-progress-fill');
+            const overallText = document.querySelector('.overall-progress-text');
+            
+            if (overallFill && overallText) {
+                overallFill.style.width = `${progress}%`;
+                overallText.textContent = text;
+            }
+        };
+        
+        const runStage = (stageIndex) => {
+            if (stageIndex >= stages.length) return;
+            
+            const stage = stages[stageIndex];
+            const startTime = Date.now();
+            
+            updateOverallProgress(Math.round((stageIndex / stages.length) * 100), `Running: ${stage.name}`);
+            
+            const progressInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(100, Math.round((elapsed / stage.duration) * 100));
+                
+                updateStage(stageIndex, progress);
+                
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    setTimeout(() => runStage(stageIndex + 1), 200);
+                }
+            }, 100);
+        };
+        
+        // Start the simulation
+        setTimeout(() => runStage(0), 500);
     }
 
     generateFallbackArchitecture() {

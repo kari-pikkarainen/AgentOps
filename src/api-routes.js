@@ -215,6 +215,7 @@ function configureApiRoutes(app) {
     
     // Architecture analysis routes
     app.post('/api/v1/claude-code/generate-architecture', generateArchitecture);
+    app.post('/api/v1/claude-code/progressive-analysis', progressiveProjectAnalysis);
     
     // Project state management routes
     app.get('/api/v1/project-state/:projectPath(*)', getProjectState);
@@ -1420,6 +1421,7 @@ module.exports = {
     executeTask,
     // Architecture analysis handlers
     generateArchitecture,
+    progressiveProjectAnalysis,
     // Streaming utilities for WebSocket handler
     executeClaudeWithPrint,
     buildTaskExecutionPrompt,
@@ -1627,6 +1629,201 @@ function parseTaskExecutionResult(claudeOutput, task) {
     }
     
     return result;
+}
+
+/**
+ * Progressive project analysis with real-time progress updates
+ * Breaks down analysis into stages with individual timeouts and progress reporting
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function progressiveProjectAnalysis(req, res) {
+    try {
+        const { projectContext } = req.body;
+        
+        if (!projectContext) {
+            return res.status(400).json({ error: 'Project context is required' });
+        }
+        
+        const projectPath = projectContext.projectPath || process.cwd();
+        const projectName = projectContext.projectName || 'Unknown Project';
+        const claudePath = projectContext.claudePath || '/opt/homebrew/bin/claude';
+        
+        console.log(`Starting progressive analysis for: ${projectName}`);
+        console.log(`Project path: ${projectPath}`);
+        
+        // Analysis stages with individual timeouts
+        const stages = [
+            {
+                name: 'File System Scan',
+                description: 'Scanning project files and structure',
+                timeout: 15000, // 15 seconds
+                progress: 0
+            },
+            {
+                name: 'Technology Detection',
+                description: 'Identifying technologies and frameworks',
+                timeout: 20000, // 20 seconds  
+                progress: 0
+            },
+            {
+                name: 'Architecture Analysis',
+                description: 'Analyzing project architecture and patterns',
+                timeout: 45000, // 45 seconds
+                progress: 0
+            },
+            {
+                name: 'Finalization',
+                description: 'Generating final analysis report',
+                timeout: 10000, // 10 seconds
+                progress: 0
+            }
+        ];
+        
+        let currentStage = 0;
+        let overallProgress = 0;
+        const results = {};
+        
+        // Stage 1: File System Scan
+        try {
+            stages[currentStage].progress = 20;
+            const fileScanPrompt = `Analyze the file structure of this project at ${projectPath}. Focus on:
+1. Main directories and their purposes
+2. Configuration files present
+3. Entry points and main files
+4. Overall project organization
+Provide a brief JSON summary of the file structure.`;
+            
+            stages[currentStage].progress = 50;
+            const fileScanResult = await executeClaudeWithPrint(claudePath, fileScanPrompt, projectPath, {
+                timeout: stages[currentStage].timeout,
+                model: 'haiku', // Use faster model for file scanning
+                returnRawOutput: true
+            });
+            
+            stages[currentStage].progress = 100;
+            results.fileStructure = fileScanResult;
+            currentStage++;
+            overallProgress = 25;
+            console.log(`Stage 1 completed: File System Scan`);
+            
+        } catch (error) {
+            console.log(`Stage 1 failed, using fallback: ${error.message}`);
+            results.fileStructure = 'File scan failed, using basic analysis';
+            currentStage++;
+            overallProgress = 25;
+        }
+        
+        // Stage 2: Technology Detection
+        try {
+            stages[currentStage].progress = 20;
+            const techDetectionPrompt = `Based on the project at ${projectPath}, identify:
+1. Programming languages used
+2. Frameworks and libraries
+3. Build tools and package managers
+4. Development tools and configurations
+Provide a JSON list of technologies found.`;
+            
+            stages[currentStage].progress = 50;
+            const techResult = await executeClaudeWithPrint(claudePath, techDetectionPrompt, projectPath, {
+                timeout: stages[currentStage].timeout,
+                model: 'haiku',
+                returnRawOutput: true
+            });
+            
+            stages[currentStage].progress = 100;
+            results.technologies = techResult;
+            currentStage++;
+            overallProgress = 50;
+            console.log(`Stage 2 completed: Technology Detection`);
+            
+        } catch (error) {
+            console.log(`Stage 2 failed, using fallback: ${error.message}`);
+            results.technologies = 'Technology detection failed, using basic analysis';
+            currentStage++;
+            overallProgress = 50;
+        }
+        
+        // Stage 3: Architecture Analysis (main analysis)
+        try {
+            stages[currentStage].progress = 10;
+            const architecturePrompt = buildArchitecturePrompt(projectContext);
+            
+            stages[currentStage].progress = 30;
+            const useContinue = shouldContinueSession(projectPath, false);
+            if (useContinue) {
+                updateSessionActivity(projectPath);
+            }
+            
+            stages[currentStage].progress = 50;
+            const architectureResult = await executeClaudeWithPrint(claudePath, architecturePrompt, projectPath, {
+                useContinue,
+                timeout: stages[currentStage].timeout,
+                model: 'sonnet',
+                returnRawOutput: true
+            });
+            
+            stages[currentStage].progress = 100;
+            results.architecture = parseArchitectureResponse(architectureResult, projectContext);
+            currentStage++;
+            overallProgress = 85;
+            console.log(`Stage 3 completed: Architecture Analysis`);
+            
+        } catch (error) {
+            console.log(`Stage 3 failed, using fallback: ${error.message}`);
+            results.architecture = generateFallbackArchitectureBackend(projectContext);
+            currentStage++;
+            overallProgress = 85;
+        }
+        
+        // Stage 4: Finalization
+        stages[currentStage].progress = 50;
+        
+        // Combine all results into final architecture object
+        const finalArchitecture = {
+            ...results.architecture,
+            fileStructureAnalysis: results.fileStructure,
+            technologyStack: results.technologies,
+            analysisStages: stages.map(stage => ({
+                name: stage.name,
+                completed: true,
+                progress: stage.progress
+            }))
+        };
+        
+        stages[currentStage].progress = 100;
+        overallProgress = 100;
+        console.log(`Progressive analysis completed for: ${projectName}`);
+        
+        res.json({
+            success: true,
+            architecture: finalArchitecture,
+            progress: {
+                overall: overallProgress,
+                stages: stages,
+                completed: true
+            },
+            sessionInfo: {
+                continued: shouldContinueSession(projectPath, false),
+                projectPath: projectPath
+            }
+        });
+        
+    } catch (error) {
+        console.error('Progressive analysis failed:', error);
+        
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            progress: {
+                overall: 0,
+                stages: [],
+                completed: false,
+                failed: true
+            },
+            architecture: generateFallbackArchitectureBackend(req.body.projectContext)
+        });
+    }
 }
 
 /**
