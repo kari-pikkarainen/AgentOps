@@ -691,11 +691,11 @@ class AgentOpsWorkflow {
             
             // Complete and show results
             this.completeAllProgressSteps();
-            this.renderTaskList();
             
             setTimeout(() => {
                 document.getElementById('task-loading').style.display = 'none';
                 document.getElementById('identified-tasks').style.display = 'block';
+                this.renderTaskList();
             }, 300);
             
         } catch (error) {
@@ -1034,6 +1034,10 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
 
     renderTaskList() {
         const container = document.getElementById('tasks-container');
+        if (!container) {
+            console.warn('Task container not found, skipping render');
+            return;
+        }
         container.innerHTML = this.taskList.map(task => `
             <div class="task-item ${task.selected ? 'selected' : ''}" data-task-id="${task.id}">
                 <div class="task-header">
