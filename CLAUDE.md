@@ -54,6 +54,9 @@ The system uses structured data models for:
 - **Enhanced User Experience**: Optimized header layout, horizontal navigation flow, and professional visual hierarchy
 
 ### Phase 4 (Advanced Features) - ✅ COMPLETED
+- **Real-time Execution Metrics**: Live file modification tracking with 3-second polling intervals during active task execution
+- **Smart File Analysis**: Automatic detection of code files, lines changed estimation, and file type breakdown during execution
+- **Recent Files Timeline**: Live display of recently modified files with timestamps and relative paths
 - **Visual Architecture Diagrams**: Interactive project architecture visualization with layer-based components showing system structure in real-time
 - **Real-time Architecture Statistics**: Live display of file counts, edits, and test metrics for each architecture layer updated during task execution
 - **Smart Instance Management**: Intelligent Claude instance creation that never exceeds the number of available tasks for optimal resource usage
@@ -146,6 +149,20 @@ args.push('--add-dir', workingDir);                   // Grant directory access
 - Git integration for version control tracking
 - Build artifact and test result monitoring
 
+### Real-time Execution Metrics
+The system provides live file modification tracking during task execution:
+- **Polling Interval**: 3-second updates during active task execution
+- **Smart File Detection**: Automatically identifies code files (js, py, html, css, etc.)
+- **Change Estimation**: Estimates lines changed based on file size delta
+- **File Type Breakdown**: Categorizes changes by file extension
+- **Recent Files Timeline**: Shows recently modified files with timestamps
+- **Memory Efficient**: Limited to 10 most recent files to prevent memory issues
+
+**API Endpoint**: `/api/v1/claude-code/live-metrics/:projectPath`
+- Configurable time window (default: 5 minutes)
+- Returns structured metrics for UI consumption
+- Handles URL encoding for complex project paths
+
 ### Architecture Visualization System
 The system provides real-time architecture visualization through:
 - **Layer-based Architecture Rendering**: Visual representation of project layers (Presentation, Business Logic, API, Data, Infrastructure)
@@ -163,6 +180,7 @@ The system exposes REST APIs for:
 - `/api/v1/claude-code/detect` - Auto-detection of Claude Code installation (✅ Implemented)
 - `/api/v1/claude-code/test` - Connection testing and validation (✅ Implemented)
 - `/api/v1/claude-code/generate-tasks` - AI-powered task generation (✅ Implemented)
+- `/api/v1/claude-code/live-metrics/:projectPath` - Real-time execution metrics (✅ Implemented)
 - `/api/v1/monitoring` - File system monitoring control (✅ Implemented)
 - `/api/v1/activities` - Activity monitoring with search/filter (✅ Implemented)
 - `/api/v1/filesystem/browse` - File system browsing and navigation (✅ Implemented)
@@ -179,6 +197,9 @@ The system exposes REST APIs for:
 - Support for 10+ concurrent Claude Code instances
 - Memory usage under 512MB for desktop application
 - Real-time WebSocket communication for live updates
+- **Execution Metrics**: 3-second polling during active task execution
+- **File Scanning**: Efficient directory traversal with smart filtering
+- **Memory Management**: Limited to 10 recent files to prevent memory leaks
 
 ## Security Considerations
 
@@ -222,6 +243,9 @@ The system exposes REST APIs for:
 - WebSocket frontend integration for real-time communication
 
 ### Phase 4: Advanced Features (✅ COMPLETED)
+- **Real-time Execution Metrics**: Live file modification tracking with 3-second polling during task execution
+- **Smart File Analysis**: Automatic code file detection and lines changed estimation
+- **Recent Files Timeline**: Live display of modified files with timestamps
 - Visual architecture diagrams with interactive layer-based components
 - Real-time architecture statistics with file counts, edits, and test metrics  
 - Smart instance management (never exceeds task count)

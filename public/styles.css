@@ -1125,8 +1125,9 @@ textarea {
 
 .execution-stats {
     display: flex;
+    flex-wrap: wrap;
     gap: 1.5rem;
-    align-items: center;
+    align-items: flex-start;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -1140,6 +1141,13 @@ textarea {
     align-items: center;
     text-align: center;
     min-width: 80px;
+}
+
+.stat-item.full-width {
+    flex: 1 1 100%;
+    align-items: flex-start;
+    text-align: left;
+    margin-top: 8px;
 }
 
 .stat-label {
@@ -1165,6 +1173,36 @@ textarea {
 
 .stat-value.warning {
     color: var(--warning);
+}
+
+.recent-files {
+    margin-top: 4px;
+    max-height: 120px;
+    overflow-y: auto;
+    width: 100%;
+}
+
+.recent-file {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 8px;
+    margin: 2px 0;
+    background: var(--border-light);
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+}
+
+.file-time {
+    color: var(--text-tertiary);
+    font-size: 11px;
+}
+
+.last-updated {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-style: italic;
 }
 
 .execution-controls {

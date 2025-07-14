@@ -12,7 +12,9 @@ AgentOps is an AI agent monitoring, control, and workflow visualization platform
 
 ### Current (Phase 4 Advanced Complete)
 - **🏗️ Visual Architecture Diagrams** - Real-time project architecture visualization with layer-based components
-- **📊 Live Architecture Statistics** - Real file counts, edits, and test metrics updated during task execution
+- **📊 Live Execution Metrics** - Real-time file modification tracking during task execution with 3-second polling intervals
+- **📈 Smart File Analysis** - Automatic detection of code files, lines changed estimation, and file type breakdown
+- **🕒 Recent Files Timeline** - Live display of recently modified files with timestamps during execution
 - **🎯 Smart Instance Management** - Never creates more agent instances than available tasks
 - **⚡ Simplified Execution Control** - Clean "Stop" and "Stop After Current Task" controls (no confusing pause states)
 - **🔄 Long-Running Task Support** - Tasks can run for minutes with proper timeout handling (5+ minute support)
@@ -104,7 +106,10 @@ AgentOps is an AI agent monitoring, control, and workflow visualization platform
 - **Settings Validation** - Ensure execution plan is ready for deployment
 
 #### Step 5: Live Execution & Monitoring
-- **Enhanced Progress Metrics** - Real-time display of files modified, lines changed, errors, and warnings
+- **Real-time File Metrics** - Live tracking of files modified, lines changed, new files created, and file type breakdown during task execution
+- **Recent Files Timeline** - Live display of recently modified files with timestamps and file paths
+- **Smart File Analysis** - Automatic filtering of code files and intelligent change detection
+- **3-Second Polling Updates** - Real-time metrics updated every 3 seconds during active task execution
 - **Advanced Execution Control** - Pause/Stop after next task completion for graceful workflow management
 - **Claude Instance Monitoring** - Live status of all running Claude Code processes
 - **Activity Timeline** - Real-time stream of all agent activities with intelligent filtering
@@ -212,6 +217,10 @@ POST /api/v1/git/commit
   "message": "Update: Task completion via AgentOps",
   "projectPath": "/path/to/project"
 }
+
+# Get live execution metrics
+GET /api/v1/claude-code/live-metrics/:projectPath?timeWindow=180000
+# Returns real-time file modification statistics during task execution
 ```
 
 ### WebSocket Events
@@ -330,7 +339,10 @@ npm run test:coverage # Run tests with coverage report
 - [x] **Enhanced Typography** - Inter font integration with proper spacing and hierarchy
 
 ### Phase 4: Advanced Features ✅ (Current)
-- [x] **Enhanced Execution Monitoring** - Real-time metrics for files, lines, errors, warnings
+- [x] **Real-time Execution Metrics** - Live file modification tracking with 3-second polling during task execution
+- [x] **Smart File Analysis** - Automatic code file detection, lines changed estimation, and file type breakdown
+- [x] **Recent Files Timeline** - Live display of recently modified files with timestamps and paths
+- [x] **Enhanced Execution Monitoring** - Comprehensive real-time metrics for files, lines, errors, warnings
 - [x] **Advanced Execution Controls** - Pause/Stop after next task completion
 - [x] **Intelligent Loop Prevention** - Smart existing project handling with analysis tasks
 - [x] **Git Integration** - Seamless commit workflow during execution control

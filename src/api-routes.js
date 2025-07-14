@@ -212,6 +212,7 @@ function configureApiRoutes(app) {
     
     // Task execution routes
     app.post('/api/v1/claude-code/execute-task', executeTask);
+    app.get('/api/v1/claude-code/live-metrics/:projectPath(*)', getLiveExecutionMetrics);
     
     // Architecture analysis routes
     app.post('/api/v1/claude-code/generate-architecture', generateArchitecture);
@@ -1393,6 +1394,142 @@ function resetProjectSession(req, res) {
     }
 }
 
+/**
+ * Get live execution metrics for a project
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+function getLiveExecutionMetrics(req, res) {
+    console.log('============ MY NEW FUNCTION CALLED ============');
+    console.log('getLiveExecutionMetrics called with path:', req.params.projectPath);
+    try {
+        const projectPath = decodeURIComponent(req.params.projectPath);
+        
+        if (!projectPath || !fs.existsSync(projectPath)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid project path'
+            });
+        }
+        
+        // Get time window for recent changes (default: last 5 minutes)
+        const timeWindow = parseInt(req.query.timeWindow) || (5 * 60 * 1000);
+        const since = Date.now() - timeWindow;
+        
+        const metrics = scanForRecentChanges(projectPath, since);
+        
+        res.json({
+            success: true,
+            metrics: {
+                ...metrics,
+                timeWindow: timeWindow,
+                lastUpdated: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        console.error('Error getting execution metrics:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get execution metrics',
+            details: error.message
+        });
+    }
+}
+
+/**
+ * Scan directory for recent file changes
+ * @param {string} projectPath - Path to project directory
+ * @param {number} since - Timestamp threshold for "recent" changes
+ * @returns {Object} Metrics about recent changes
+ */
+function scanForRecentChanges(projectPath, since) {
+    const metrics = {
+        filesModified: 0,
+        linesChanged: 0,
+        newFiles: 0,
+        deletedFiles: 0,
+        fileTypes: {},
+        recentFiles: []
+    };
+    
+    try {
+        const scanDirectory = (dir) => {
+            const items = fs.readdirSync(dir, { withFileTypes: true });
+            
+            for (const item of items) {
+                const fullPath = path.join(dir, item.name);
+                
+                // Skip common directories and files
+                if (item.name.startsWith('.') || 
+                    item.name === 'node_modules' || 
+                    item.name === 'dist' || 
+                    item.name === 'build') {
+                    continue;
+                }
+                
+                if (item.isDirectory()) {
+                    scanDirectory(fullPath);
+                } else if (item.isFile() && isCodeFile(item.name)) {
+                    const stats = fs.statSync(fullPath);
+                    const modifiedTime = stats.mtime.getTime();
+                    
+                    if (modifiedTime > since) {
+                        metrics.filesModified++;
+                        
+                        // Estimate lines changed (rough approximation)
+                        const sizeKB = stats.size / 1024;
+                        const estimatedLines = Math.ceil(sizeKB * 30); // Rough estimate: 30 lines per KB
+                        metrics.linesChanged += estimatedLines;
+                        
+                        // Track file types
+                        const ext = path.extname(item.name).toLowerCase();
+                        metrics.fileTypes[ext] = (metrics.fileTypes[ext] || 0) + 1;
+                        
+                        // Add to recent files list (limit to 10)
+                        if (metrics.recentFiles.length < 10) {
+                            metrics.recentFiles.push({
+                                path: path.relative(projectPath, fullPath),
+                                modified: new Date(modifiedTime).toISOString(),
+                                size: stats.size
+                            });
+                        }
+                    }
+                    
+                    // Check for very recent files (new files)
+                    const createdTime = stats.birthtime.getTime();
+                    if (createdTime > since) {
+                        metrics.newFiles++;
+                    }
+                }
+            }
+        };
+        
+        scanDirectory(projectPath);
+    } catch (error) {
+        console.error('Error scanning for changes:', error);
+    }
+    
+    return metrics;
+}
+
+/**
+ * Check if a file is a code file based on extension
+ * @param {string} filename - Name of the file
+ * @returns {boolean} True if it's a code file
+ */
+function isCodeFile(filename) {
+    const codeExtensions = new Set([
+        '.js', '.jsx', '.ts', '.tsx', '.py', '.java', '.c', '.cpp', '.h', '.hpp',
+        '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.clj',
+        '.html', '.css', '.scss', '.sass', '.less', '.vue', '.svelte',
+        '.json', '.xml', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf',
+        '.md', '.txt', '.sql', '.sh', '.bat', '.ps1', '.dockerfile', '.makefile'
+    ]);
+    
+    const ext = path.extname(filename).toLowerCase();
+    return codeExtensions.has(ext) || filename.toLowerCase().includes('makefile') || filename.toLowerCase().includes('dockerfile');
+}
+
 module.exports = {
     configureApiRoutes,
     // Export individual handlers for testing
@@ -1419,6 +1556,7 @@ module.exports = {
     resetProjectSession,
     // Task execution handlers
     executeTask,
+    getLiveExecutionMetrics,
     // Architecture analysis handlers
     generateArchitecture,
     progressiveProjectAnalysis,
@@ -1536,6 +1674,189 @@ async function executeTask(req, res) {
             }
         });
     }
+}
+
+/**
+ * Get live execution metrics for a project during task execution
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+function getLiveExecutionMetrics(req, res) {
+    try {
+        const projectPath = req.params.projectPath || process.cwd();
+        const fs = require('fs');
+        const path = require('path');
+        
+        // Initialize metrics
+        const metrics = {
+            filesModified: 0,
+            filesCreated: 0,
+            linesChanged: 0,
+            lastActivity: Date.now(),
+            projectSize: 0,
+            recentFiles: []
+        };
+        
+        // Check if project path exists
+        if (!fs.existsSync(projectPath)) {
+            return res.json({
+                success: false,
+                error: 'Project path not found',
+                metrics: metrics
+            });
+        }
+        
+        try {
+            // Analyze recent file changes (files modified in last 5 minutes)
+            const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+            const recentChanges = scanForRecentChanges(projectPath, fiveMinutesAgo);
+            
+            metrics.filesModified = recentChanges.modified.length;
+            metrics.filesCreated = recentChanges.created.length;
+            metrics.linesChanged = recentChanges.totalLines;
+            metrics.recentFiles = recentChanges.recentFiles.slice(0, 5); // Last 5 files
+            metrics.projectSize = recentChanges.projectSize;
+            metrics.lastActivity = recentChanges.lastActivity;
+            
+            res.json({
+                success: true,
+                metrics: metrics,
+                timestamp: Date.now()
+            });
+            
+        } catch (error) {
+            console.warn('Error analyzing file changes:', error.message);
+            res.json({
+                success: true,
+                metrics: metrics,
+                timestamp: Date.now(),
+                warning: 'Limited metrics available due to file access restrictions'
+            });
+        }
+        
+    } catch (error) {
+        console.error('Failed to get execution metrics:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get execution metrics',
+            details: error.message
+        });
+    }
+}
+
+/**
+ * Scan for recent file changes in project directory
+ * @param {string} projectPath - Project directory path
+ * @param {number} sinceTime - Timestamp to check changes since
+ * @returns {Object} Changes summary
+ */
+function scanForRecentChanges(projectPath, sinceTime) {
+    const fs = require('fs');
+    const path = require('path');
+    
+    const results = {
+        modified: [],
+        created: [],
+        totalLines: 0,
+        recentFiles: [],
+        projectSize: 0,
+        lastActivity: 0
+    };
+    
+    // Patterns to ignore
+    const ignorePatterns = [
+        /node_modules/,
+        /\.git/,
+        /\.DS_Store/,
+        /package-lock\.json/,
+        /\.log$/,
+        /coverage/,
+        /dist/,
+        /build/
+    ];
+    
+    function scanDirectory(dir, depth = 0) {
+        if (depth > 3) return; // Limit recursion depth
+        
+        try {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+                
+                // Skip ignored patterns
+                if (ignorePatterns.some(pattern => pattern.test(fullPath))) {
+                    continue;
+                }
+                
+                try {
+                    const stats = fs.statSync(fullPath);
+                    const modTime = stats.mtime.getTime();
+                    
+                    if (entry.isDirectory()) {
+                        scanDirectory(fullPath, depth + 1);
+                    } else if (entry.isFile()) {
+                        results.projectSize += stats.size;
+                        
+                        if (modTime > sinceTime) {
+                            const isNew = stats.birthtime.getTime() > sinceTime;
+                            
+                            if (isNew) {
+                                results.created.push(fullPath);
+                            } else {
+                                results.modified.push(fullPath);
+                            }
+                            
+                            // Count lines for code files
+                            if (isCodeFile(fullPath)) {
+                                try {
+                                    const content = fs.readFileSync(fullPath, 'utf8');
+                                    const lineCount = content.split('\n').length;
+                                    results.totalLines += lineCount;
+                                } catch (e) {
+                                    // Skip files that can't be read
+                                }
+                            }
+                            
+                            results.recentFiles.push({
+                                path: path.relative(projectPath, fullPath),
+                                modified: modTime,
+                                size: stats.size,
+                                isNew: isNew
+                            });
+                            
+                            if (modTime > results.lastActivity) {
+                                results.lastActivity = modTime;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Skip files that can't be accessed
+                    continue;
+                }
+            }
+        } catch (e) {
+            // Skip directories that can't be read
+            return;
+        }
+    }
+    
+    scanDirectory(projectPath);
+    
+    // Sort recent files by modification time (newest first)
+    results.recentFiles.sort((a, b) => b.modified - a.modified);
+    
+    return results;
+}
+
+/**
+ * Check if file is a code file
+ * @param {string} filePath - File path
+ * @returns {boolean} True if code file
+ */
+function isCodeFile(filePath) {
+    const codeExtensions = ['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.h', '.css', '.html', '.vue', '.php', '.rb', '.go', '.rs', '.json', '.yml', '.yaml'];
+    return codeExtensions.includes(path.extname(filePath));
 }
 
 /**

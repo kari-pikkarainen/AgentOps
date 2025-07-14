@@ -1418,6 +1418,8 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
     }
 
     async executeTaskWithClaudeCLI(task) {
+        let metricsPollingInterval = null;
+        
         try {
             // Build project context
             const projectContext = {
@@ -1434,6 +1436,11 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
                 finalPath: projectContext.projectPath,
                 isExisting: this.isExistingProject
             });
+            
+            // Start polling execution metrics every 3 seconds
+            metricsPollingInterval = setInterval(() => {
+                this.pollExecutionMetrics(projectContext.projectPath);
+            }, 3000);
             
             // Send task execution request to backend
             // Task execution can take up to 5 minutes, use longer timeout
@@ -1473,6 +1480,75 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
             }
             console.error('Claude CLI task execution failed:', error);
             throw error;
+        } finally {
+            // Stop polling metrics when task execution is complete
+            if (metricsPollingInterval) {
+                clearInterval(metricsPollingInterval);
+            }
+        }
+    }
+
+    async pollExecutionMetrics(projectPath) {
+        try {
+            const encodedPath = encodeURIComponent(projectPath);
+            const response = await fetch(`/api/v1/claude-code/live-metrics/${encodedPath}?timeWindow=180000`); // 3 minutes
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    this.updateExecutionMetricsUI(data.metrics);
+                }
+            }
+        } catch (error) {
+            // Silently fail polling - don't interrupt task execution
+            console.debug('Metrics polling failed:', error);
+        }
+    }
+
+    updateExecutionMetricsUI(metrics) {
+        // Update the execution monitoring UI with live metrics
+        const statsContainer = document.querySelector('.execution-stats');
+        if (!statsContainer) return;
+        
+        // Update files modified counter
+        const filesModifiedElement = statsContainer.querySelector('.files-modified');
+        if (filesModifiedElement) {
+            filesModifiedElement.textContent = metrics.filesModified;
+        }
+        
+        // Update lines changed counter
+        const linesChangedElement = statsContainer.querySelector('.lines-changed');
+        if (linesChangedElement) {
+            linesChangedElement.textContent = metrics.linesChanged;
+        }
+        
+        // Update new files counter
+        const newFilesElement = statsContainer.querySelector('.new-files');
+        if (newFilesElement) {
+            newFilesElement.textContent = metrics.newFiles;
+        }
+        
+        // Update file types breakdown
+        const fileTypesElement = statsContainer.querySelector('.file-types');
+        if (fileTypesElement && Object.keys(metrics.fileTypes).length > 0) {
+            const typesList = Object.entries(metrics.fileTypes)
+                .map(([ext, count]) => `${ext}: ${count}`)
+                .join(', ');
+            fileTypesElement.textContent = typesList;
+        }
+        
+        // Update recent files list
+        const recentFilesElement = statsContainer.querySelector('.recent-files');
+        if (recentFilesElement && metrics.recentFiles.length > 0) {
+            recentFilesElement.innerHTML = metrics.recentFiles
+                .map(file => `<div class="recent-file">${file.path} <span class="file-time">${new Date(file.modified).toLocaleTimeString()}</span></div>`)
+                .join('');
+        }
+        
+        // Update last updated timestamp
+        const lastUpdatedElement = statsContainer.querySelector('.last-updated');
+        if (lastUpdatedElement) {
+            lastUpdatedElement.textContent = `Last updated: ${new Date(metrics.lastUpdated).toLocaleTimeString()}`;
         }
     }
 
