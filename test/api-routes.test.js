@@ -27,6 +27,23 @@ jest.mock('../src/activity-parser', () => ({
     clearActivities: jest.fn()
 }));
 
+// Mock fs module for project state tests
+jest.mock('fs', () => ({
+    existsSync: jest.fn(),
+    writeFileSync: jest.fn(),
+    readFileSync: jest.fn(),
+    unlinkSync: jest.fn(),
+    mkdirSync: jest.fn(),
+    readdirSync: jest.fn(() => []),
+    statSync: jest.fn(() => ({ isDirectory: () => false, isFile: () => true }))
+}));
+
+// Mock child_process for Claude CLI tests
+jest.mock('child_process', () => ({
+    spawn: jest.fn(),
+    execSync: jest.fn()
+}));
+
 const request = require('supertest');
 const express = require('express');
 const { configureApiRoutes } = require('../src/api-routes');
@@ -34,6 +51,8 @@ const { configureApiRoutes } = require('../src/api-routes');
 const processManager = require('../src/process-manager');
 const fileMonitor = require('../src/file-monitor');
 const activityParser = require('../src/activity-parser');
+const fs = require('fs');
+const { spawn, execSync } = require('child_process');
 
 describe('API Routes', () => {
     let app;
@@ -42,8 +61,34 @@ describe('API Routes', () => {
         app = express();
         configureApiRoutes(app);
         
-        // Reset mocks
+        // Reset all mocks
         jest.clearAllMocks();
+        
+        // Set default mock implementations
+        fs.existsSync.mockReturnValue(false);
+        fs.readFileSync.mockReturnValue('{}');
+        fs.statSync.mockImplementation((filePath) => {
+            // Default to file, but handle specific directory cases
+            if (filePath && (filePath.includes('/test') || filePath.includes('folder'))) {
+                return { isDirectory: () => true, isFile: () => false, mode: 0o755 };
+            }
+            return { isDirectory: () => false, isFile: () => true, mode: 0o755 };
+        });
+        fs.readdirSync.mockReturnValue([]);
+        
+        // Reset child_process mocks
+        execSync.mockImplementation(() => {
+            throw new Error('command not found');
+        });
+        
+        // Mock spawn to return proper mock process
+        spawn.mockReturnValue({
+            stdout: { on: jest.fn() },
+            stderr: { on: jest.fn() },
+            stdin: { write: jest.fn(), end: jest.fn() },
+            on: jest.fn(),
+            kill: jest.fn()
+        });
     });
 
     describe('Claude Code Instance Management', () => {
@@ -428,6 +473,389 @@ describe('API Routes', () => {
                     .expect(500);
 
                 expect(response.body).toHaveProperty('error', 'Failed to clear activities');
+            });
+        });
+    });
+
+    describe('Project State Management', () => {
+        beforeEach(() => {
+            // Reset all mocks
+            jest.clearAllMocks();
+            
+            // Set default fs mock implementations
+            fs.existsSync.mockReturnValue(false);
+            fs.readFileSync.mockReturnValue('{}');
+            fs.statSync.mockReturnValue({ isDirectory: () => false, isFile: () => true });
+            fs.readdirSync.mockReturnValue([]);
+        });
+
+        describe('POST /api/v1/project-state/check', () => {
+            test('should check project state successfully when state exists', async () => {
+                fs.existsSync.mockReturnValue(true);
+                fs.readFileSync.mockReturnValue(JSON.stringify({
+                    savedAt: '2025-01-01T00:00:00.000Z',
+                    tasks: [
+                        { id: '1', status: 'completed' },
+                        { id: '2', status: 'pending' }
+                    ],
+                    architecture: { layers: [] }
+                }));
+
+                const response = await request(app)
+                    .post('/api/v1/project-state/check')
+                    .send({ projectPath: '/test/project' })
+                    .expect(200);
+
+                expect(response.body.success).toBe(true);
+                expect(response.body.hasState).toBe(true);
+                expect(response.body.stateInfo.taskCount).toBe(2);
+                expect(response.body.stateInfo.completedTasks).toBe(1);
+            });
+
+            test('should check project state when no state exists', async () => {
+                fs.existsSync.mockReturnValue(false);
+
+                const response = await request(app)
+                    .post('/api/v1/project-state/check')
+                    .send({ projectPath: '/test/project' })
+                    .expect(200);
+
+                expect(response.body.success).toBe(true);
+                expect(response.body.hasState).toBe(false);
+                expect(response.body.stateInfo).toBeNull();
+            });
+
+            test('should require project path', async () => {
+                const response = await request(app)
+                    .post('/api/v1/project-state/check')
+                    .send({})
+                    .expect(400);
+
+                expect(response.body.success).toBe(false);
+                expect(response.body.error).toBe('Project path is required');
+            });
+        });
+
+        describe('POST /api/v1/project-state/save', () => {
+            test('should save project state successfully', async () => {
+                fs.existsSync.mockReturnValue(true);
+
+                const response = await request(app)
+                    .post('/api/v1/project-state/save')
+                    .send({
+                        projectPath: '/test/project',
+                        state: { tasks: [], currentStep: 3 }
+                    })
+                    .expect(200);
+
+                expect(response.body.success).toBe(true);
+                expect(response.body.message).toBe('Project state saved successfully');
+                expect(fs.writeFileSync).toHaveBeenCalled();
+            });
+
+            test('should require project path', async () => {
+                const response = await request(app)
+                    .post('/api/v1/project-state/save')
+                    .send({ state: {} })
+                    .expect(400);
+
+                expect(response.body.success).toBe(false);
+                expect(response.body.error).toBe('Project path is required');
+            });
+        });
+
+        describe('GET /api/v1/project-state/:projectPath', () => {
+            test('should load project state successfully', async () => {
+                const mockState = {
+                    projectPath: '/test/project',
+                    savedAt: '2025-01-01T00:00:00.000Z',
+                    tasks: []
+                };
+                
+                fs.existsSync.mockReturnValue(true);
+                fs.readFileSync.mockReturnValue(JSON.stringify(mockState));
+
+                const response = await request(app)
+                    .get('/api/v1/project-state/' + encodeURIComponent('/test/project'))
+                    .expect(200);
+
+                expect(response.body.success).toBe(true);
+                expect(response.body.state.projectPath).toBe('/test/project');
+            });
+
+            test('should handle state not found', async () => {
+                fs.existsSync.mockReturnValue(false);
+
+                const response = await request(app)
+                    .get('/api/v1/project-state/' + encodeURIComponent('/test/project'))
+                    .expect(404);
+
+                expect(response.body.success).toBe(false);
+                expect(response.body.error).toBe('No saved state found for this project');
+            });
+        });
+
+        describe('DELETE /api/v1/project-state/:projectPath', () => {
+            test('should delete project state successfully', async () => {
+                fs.existsSync.mockReturnValue(true);
+
+                const response = await request(app)
+                    .delete('/api/v1/project-state/' + encodeURIComponent('/test/project'))
+                    .expect(200);
+
+                expect(response.body.success).toBe(true);
+                expect(response.body.message).toBe('Project state deleted successfully');
+                expect(fs.unlinkSync).toHaveBeenCalled();
+            });
+        });
+    });
+
+    describe('Claude Code Detection and Testing', () => {
+        describe('GET /api/v1/claude-code/status', () => {
+            test('should return Claude Code status when available', async () => {
+                // Mock successful claude detection
+                execSync.mockReturnValue('/opt/homebrew/bin/claude\n');
+                fs.existsSync.mockReturnValue(true);
+                fs.statSync.mockReturnValue({ isFile: () => true, mode: 0o755 });
+
+                const response = await request(app)
+                    .get('/api/v1/claude-code/status')
+                    .expect(200);
+
+                expect(response.body.available).toBe(true);
+                expect(response.body.detectedPath).toBe('/opt/homebrew/bin/claude');
+            });
+
+            test('should return unavailable when Claude Code not found', async () => {
+                // Mock failed claude detection
+                execSync.mockImplementation(() => {
+                    throw new Error('command not found');
+                });
+                fs.existsSync.mockReturnValue(false);
+
+                const response = await request(app)
+                    .get('/api/v1/claude-code/status')
+                    .expect(200);
+
+                expect(response.body.available).toBe(false);
+                expect(response.body.detectedPath).toBeNull();
+            });
+        });
+
+        describe('GET /api/v1/claude-code/detect', () => {
+            test('should detect Claude Code successfully', async () => {
+                // Mock successful claude detection
+                execSync.mockReturnValue('/opt/homebrew/bin/claude\n');
+                fs.existsSync.mockReturnValue(true);
+                fs.statSync.mockReturnValue({ isFile: () => true, mode: 0o755 });
+
+                const response = await request(app)
+                    .get('/api/v1/claude-code/detect')
+                    .expect(200);
+
+                expect(response.body.success).toBe(true);
+                expect(response.body.path).toBe('/opt/homebrew/bin/claude');
+            });
+
+            test('should handle detection failure', async () => {
+                // Mock failed claude detection
+                execSync.mockImplementation(() => {
+                    throw new Error('command not found');
+                });
+                fs.existsSync.mockReturnValue(false);
+
+                const response = await request(app)
+                    .get('/api/v1/claude-code/detect')
+                    .expect(200);
+
+                expect(response.body.success).toBe(false);
+                expect(response.body.path).toBeNull();
+            });
+        });
+
+        describe('POST /api/v1/claude-code/test', () => {
+            test('should test Claude Code connection successfully', async () => {
+                const mockProcess = {
+                    stdout: { on: jest.fn() },
+                    stderr: { on: jest.fn() },
+                    on: jest.fn((event, callback) => {
+                        if (event === 'close') {
+                            callback(0); // Exit code 0 for success
+                        }
+                    })
+                };
+                spawn.mockReturnValue(mockProcess);
+
+                // Simulate stdout data
+                mockProcess.stdout.on.mockImplementation((event, callback) => {
+                    if (event === 'data') {
+                        callback('claude version 1.0.0');
+                    }
+                });
+
+                const response = await request(app)
+                    .post('/api/v1/claude-code/test')
+                    .send({ path: '/opt/homebrew/bin/claude' })
+                    .expect(200);
+
+                expect(response.body.success).toBe(true);
+                expect(spawn).toHaveBeenCalledWith('/opt/homebrew/bin/claude', ['--version'], expect.any(Object));
+            });
+
+            test('should handle missing Claude Code path', async () => {
+                const response = await request(app)
+                    .post('/api/v1/claude-code/test')
+                    .send({})
+                    .expect(400);
+
+                expect(response.body.success).toBe(false);
+                expect(response.body.error).toBe('No Claude Code executable path provided or detected');
+            });
+        });
+    });
+
+    describe('File System Browsing', () => {
+        describe('GET /api/v1/filesystem/browse', () => {
+            test('should browse filesystem successfully', async () => {
+                fs.existsSync.mockReturnValue(true);
+                fs.readdirSync.mockReturnValue(['file1.js', 'folder1']);
+                fs.statSync.mockImplementation((filePath) => {
+                    if (filePath.includes('folder1')) {
+                        return { isDirectory: () => true, isFile: () => false };
+                    }
+                    return { isDirectory: () => false, isFile: () => true };
+                });
+
+                const response = await request(app)
+                    .get('/api/v1/filesystem/browse?path=/test/path')
+                    .expect(200);
+
+                expect(response.body.success).toBe(true);
+                expect(response.body.items.length).toBeGreaterThan(0);
+                expect(response.body.currentPath).toBe('/test/path');
+            });
+
+            test('should handle non-existent path', async () => {
+                fs.existsSync.mockReturnValue(false);
+
+                const response = await request(app)
+                    .get('/api/v1/filesystem/browse?path=/nonexistent')
+                    .expect(404);
+
+                expect(response.body.error).toBe('Path does not exist');
+            });
+        });
+
+        describe('POST /api/v1/filesystem/analyze', () => {
+            test('should analyze project successfully', async () => {
+                fs.existsSync.mockReturnValue(true);
+                fs.readdirSync.mockReturnValue(['package.json', 'src']);
+                fs.statSync.mockImplementation((filePath) => {
+                    if (filePath.includes('src')) {
+                        return { isDirectory: () => true, isFile: () => false };
+                    }
+                    return { isDirectory: () => false, isFile: () => true };
+                });
+
+                const response = await request(app)
+                    .post('/api/v1/filesystem/analyze')
+                    .send({ projectPath: '/test/project' })
+                    .expect(200);
+
+                expect(response.body.success).toBe(true);
+                expect(response.body).toHaveProperty('analysis');
+            });
+
+            test('should require project path', async () => {
+                const response = await request(app)
+                    .post('/api/v1/filesystem/analyze')
+                    .send({})
+                    .expect(400);
+
+                expect(response.body.error).toBe('Project path is required');
+            });
+        });
+    });
+
+    describe('Task Generation', () => {
+        describe('POST /api/v1/claude-code/generate-tasks', () => {
+            test('should generate tasks successfully', async () => {
+                const mockProcess = {
+                    stdout: { on: jest.fn() },
+                    stderr: { on: jest.fn() },
+                    stdin: { write: jest.fn(), end: jest.fn() },
+                    on: jest.fn((event, callback) => {
+                        if (event === 'close') {
+                            callback(0);
+                        }
+                    })
+                };
+                spawn.mockReturnValue(mockProcess);
+
+                // Mock Claude output with tasks
+                mockProcess.stdout.on.mockImplementation((event, callback) => {
+                    if (event === 'data') {
+                        callback(JSON.stringify([
+                            { id: 'task-1', title: 'Test task', priority: 'high' }
+                        ]));
+                    }
+                });
+
+                const response = await request(app)
+                    .post('/api/v1/claude-code/generate-tasks')
+                    .send({
+                        prompt: 'Generate tasks',
+                        projectContext: { projectPath: '/test' }
+                    })
+                    .expect(200);
+
+                expect(response.body.success).toBe(true);
+                expect(response.body.tasks).toHaveLength(1);
+            });
+
+            test('should require prompt', async () => {
+                const response = await request(app)
+                    .post('/api/v1/claude-code/generate-tasks')
+                    .send({ projectContext: {} })
+                    .expect(400);
+
+                expect(response.body.error).toBe('Prompt is required');
+            });
+        });
+    });
+
+    describe('Git Integration', () => {
+        describe('POST /api/v1/git/commit', () => {
+            test('should commit successfully', async () => {
+                const mockProcess = {
+                    stdout: { on: jest.fn() },
+                    stderr: { on: jest.fn() },
+                    on: jest.fn((event, callback) => {
+                        if (event === 'close') {
+                            callback(0);
+                        }
+                    })
+                };
+                spawn.mockReturnValue(mockProcess);
+
+                const response = await request(app)
+                    .post('/api/v1/git/commit')
+                    .send({
+                        message: 'Test commit',
+                        projectPath: '/test/project'
+                    })
+                    .expect(200);
+
+                expect(response.body.success).toBe(true);
+            });
+
+            test('should require commit message', async () => {
+                const response = await request(app)
+                    .post('/api/v1/git/commit')
+                    .send({ projectPath: '/test' })
+                    .expect(400);
+
+                expect(response.body.error).toBe('Commit message is required');
             });
         });
     });

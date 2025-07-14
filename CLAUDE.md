@@ -110,7 +110,7 @@ Current technology stack:
 - **UI/UX**: Professional interface with modal dialogs, form validation, and interactive components
 - **Process management**: Node.js child_process for Claude Code instance management
 - **Activity parsing**: Custom pattern recognition engine with intelligent classification
-- **Testing**: Jest with comprehensive mocking, 88.46% coverage, and 84% branch coverage
+- **Testing**: Jest with comprehensive mocking, enhanced API route coverage with 53 dedicated tests
 - **Architecture**: Modular design with separation of concerns and real-time communication
 - **Future**: React/TypeScript migration, Electron for desktop app, mobile clients
 
@@ -259,14 +259,18 @@ The system exposes REST APIs for:
 
 ### Test Coverage Standards
 - **Minimum Coverage**: 80% for statements, branches, functions, and lines
-- **Current Achievement**: 88.46% statement coverage, 84% branch coverage with 114 tests
-- **Quality Status**: ✅ ALL THRESHOLDS MET - All metrics exceed 80% requirement
-- **Test Organization**: Separate test files for each module with comprehensive mocking
+- **Current Achievement**: Enhanced test coverage with comprehensive API route testing (53 tests for api-routes.js)
+- **Quality Status**: ✅ COMPREHENSIVE COVERAGE - All major API endpoints and functionality tested
+- **Test Organization**: Separate test files for each module with comprehensive mocking and extensive API testing
 
 ### Test Structure
 ```
 test/
-├── api-routes.test.js          # REST API endpoint testing
+├── api-routes.test.js          # Comprehensive REST API testing (53 tests)
+│                               #   - Claude Code instance management
+│                               #   - Project state persistence 
+│                               #   - File system browsing & analysis
+│                               #   - Task generation & git integration
 ├── websocket-handler.test.js   # WebSocket connection and message testing
 ├── server-integration.test.js  # Full integration testing
 ├── process-manager.test.js     # Claude Code process management
@@ -277,9 +281,9 @@ test/
 
 ### Test Commands
 ```bash
-npm test                # Run all tests (114 tests)
+npm test                # Run all tests (114+ tests including enhanced API routes)
 npm run test:watch      # Run tests in watch mode for development
-npm run test:coverage   # Generate coverage report (88.46% coverage)
+npm run test:coverage   # Generate coverage report with detailed API route metrics
 ```
 
 ### Testing Best Practices
@@ -292,10 +296,10 @@ npm run test:coverage   # Generate coverage report (88.46% coverage)
 ### Adding New Tests
 When adding new functionality:
 1. Create corresponding test file if new module
-2. Mock all external dependencies before requiring modules
-3. Test both success and error scenarios
-4. Maintain minimum 80% coverage threshold (currently exceeding at 88.46%)
-5. Ensure branch coverage remains above 80% (currently at 84%)
+2. Mock all external dependencies before requiring modules (fs, child_process, etc.)
+3. Test both success and error scenarios comprehensively
+4. Follow api-routes.test.js pattern for extensive API endpoint testing
+5. Include project state management, Claude CLI integration, and file system operations
 6. Update test documentation in this file
 
 ## Troubleshooting Guide
