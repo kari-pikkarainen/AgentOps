@@ -579,10 +579,12 @@ class AgentOpsWorkflow {
             document.getElementById('existing-project-path').value = currentPath;
             this.isSelectingExistingProject = false;
             this.closeFolderSelector();
+            this.saveProjectData(); // Save project data after setting path
             this.analyzeExistingProject(currentPath);
         } else {
             document.getElementById('project-path').value = currentPath;
             this.closeFolderSelector();
+            this.saveProjectData(); // Save project data after setting path
             this.scanProject();
         }
     }
@@ -1391,6 +1393,14 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
                 isExisting: this.isExistingProject,
                 claudePath: this.settings.claudePath || '/opt/homebrew/bin/claude'
             };
+            
+            // Debug logging
+            console.log('Task execution project context:', {
+                savedPath: this.projectData.path,
+                fallbackPath: this.getDefaultProjectPath(),
+                finalPath: projectContext.projectPath,
+                isExisting: this.isExistingProject
+            });
             
             // Send task execution request to backend
             // Task execution can take up to 5 minutes, use longer timeout
