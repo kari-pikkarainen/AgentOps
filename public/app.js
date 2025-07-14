@@ -393,6 +393,7 @@ class AgentOpsWorkflow {
             this.projectData = {
                 type: 'new',
                 name: document.getElementById('project-name').value,
+                path: document.getElementById('project-path').value,
                 claudeSpecification: document.getElementById('claude-specification').value,
                 additionalNotes: document.getElementById('additional-notes').value,
                 extractedDetails: this.extractedDetails || {}
