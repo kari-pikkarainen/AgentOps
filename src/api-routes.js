@@ -1391,7 +1391,7 @@ async function executeTask(req, res) {
                 const simplePrompt = `${task.title}: ${task.description}`;
                 try {
                     result = await executeClaudeWithPrint(claudePath, simplePrompt, projectPath, {
-                        useContinue: false, // Don't use continue for retry
+                        useContinue: useContinue, // Use same session continuity setting as first attempt
                         timeout: executionOptions.timeout || 300000,
                         model: executionOptions.model || 'sonnet'
                     });
@@ -1572,9 +1572,13 @@ async function generateArchitecture(req, res) {
         console.log(`Generating architecture analysis for: ${projectName}`);
         console.log(`Project path: ${projectPath}`);
         
-        // Don't use session continuity for architecture analysis to avoid issues
-        const useContinue = false;
-        // updateSessionActivity(projectPath); // Skip for now
+        // Use session continuity for architecture analysis (unless it's a new project start)
+        const isNewProject = projectContext && projectContext.isNewProject || false;
+        const useContinue = shouldContinueSession(projectPath, isNewProject);
+        
+        if (useContinue) {
+            updateSessionActivity(projectPath);
+        }
         
         // Execute architecture analysis with Claude CLI
         const startTime = Date.now();
