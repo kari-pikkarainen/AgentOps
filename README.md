@@ -57,7 +57,7 @@ AgentOps is an AI agent monitoring, control, and workflow visualization platform
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd CodingAgentWorkflow
+   cd AgentOps
    ```
 
 2. **Install dependencies**
@@ -254,7 +254,7 @@ ws.onmessage = (event) => {
 ## 🗂️ Project Structure
 
 ```
-CodingAgentWorkflow/
+AgentOps/
 ├── public/                 # Frontend Application (Phase 3 Complete)
 │   ├── index.html          # 5-step workflow interface with Claude integration
 │   ├── styles.css          # Modern responsive styling with animations
