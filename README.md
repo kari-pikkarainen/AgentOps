@@ -2,15 +2,17 @@
 
 AgentOps is an AI agent monitoring, control, and workflow visualization platform that brings DevOps principles to AI agent development. It provides real-time oversight and management of AI agents like Claude Code throughout the entire development lifecycle.
 
-![Project Status](https://img.shields.io/badge/Status-Phase%204%20Advanced%20Complete-brightgreen)
+![Project Status](https://img.shields.io/badge/Status-Phase%203%20Advanced%20Complete-brightgreen)
 ![Test Coverage](https://img.shields.io/badge/Coverage-88.46%25-brightgreen)
 ![Branch Coverage](https://img.shields.io/badge/Branch%20Coverage-84.00%25-brightgreen)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen)
 ![License](https://img.shields.io/badge/License-Proprietary-red)
 
+![AgentOps Screenshot](AgentOps-screenshot.png)
+
 ## 🚀 Features
 
-### Current (Phase 4 Advanced Complete)
+### Current (Phase 3 Advanced Complete)
 - **🏗️ Visual Architecture Diagrams** - Real-time project architecture visualization with layer-based components
 - **📊 Live Execution Metrics** - Real-time file modification tracking during task execution with 3-second polling intervals
 - **📈 Smart File Analysis** - Automatic detection of code files, lines changed estimation, and file type breakdown
@@ -30,14 +32,6 @@ AgentOps is an AI agent monitoring, control, and workflow visualization platform
 - **🎨 Neural Purple Brand System** - Professional color palette with Linear/Uizard-inspired aesthetics
 - **✨ Modern UI Components** - Inter typography, Lucide SVG icons, and contemporary design patterns
 
-### Phase 1 Foundation ✅
-- Real-time workflow visualization with interactive canvas
-- Activity timeline with filtering and search capabilities
-- Status dashboard and controls
-- WebSocket infrastructure for real-time updates
-- **Test Coverage**: 88.46% statements, 84% branches with 114+ passing tests across 7 test suites
-- **Modular Architecture**: Extracted API routes and WebSocket handlers into testable modules
-- **Quality Assurance**: All coverage thresholds met (80%+ across all metrics)
 
 ## 🛠️ Technology Stack
 
@@ -47,6 +41,9 @@ AgentOps is an AI agent monitoring, control, and workflow visualization platform
 - **File Monitoring**: Chokidar
 - **Process Management**: Node.js child_process
 - **Activity Parsing**: Custom pattern recognition engine
+- **Testing**: Jest with 88.46% coverage, 114+ tests across 7 suites
+- **Quality**: 84% branch coverage, comprehensive API route testing
+- **Architecture**: Modular design with extracted API routes and WebSocket handlers
 - **Future**: React/TypeScript, Electron, Mobile apps
 
 ## 📋 Prerequisites
@@ -295,9 +292,11 @@ npm run test:coverage # Run tests with coverage report
 
 ### Architecture
 - **Event-Driven**: All components communicate via EventEmitter
-- **Real-time**: WebSocket integration for live updates
+- **Real-time**: WebSocket integration for live updates and activity streaming
 - **Modular**: Separate modules for process, file, and activity management
 - **Testable**: Comprehensive test coverage with Jest and mocked dependencies
+- **Quality Assurance**: All coverage thresholds met (80%+ across all metrics)
+- **Foundation Features**: Real-time workflow visualization, activity timeline with filtering, status dashboard and controls
 - **Scalable**: Designed for multiple concurrent instances and projects
 
 ### Performance Features
@@ -308,15 +307,6 @@ npm run test:coverage # Run tests with coverage report
 
 ## 🔮 Roadmap
 
-### Phase 1: Core Foundation ✅
-- [x] Basic web interface with workflow visualization
-- [x] Activity timeline with mock data
-- [x] Status dashboard and controls
-- [x] WebSocket infrastructure
-- [x] **Test Coverage Improvements**: 88.46% coverage with 114+ tests (all passing)
-- [x] **Branch Coverage Achievement**: 84% branch coverage (exceeds 80% threshold)
-- [x] **API Route Testing**: Fixed all 53 api-routes.js tests with comprehensive error handling coverage
-- [x] **Modular Refactoring**: Extracted API routes and WebSocket handlers
 
 ### Phase 2: Real Integration ✅
 - [x] Claude Code process management and communication
@@ -338,26 +328,15 @@ npm run test:coverage # Run tests with coverage report
 - [x] **Abstract Logo Design** - Modern SVG logo representing AI agent workflows
 - [x] **Enhanced Typography** - Inter font integration with proper spacing and hierarchy
 
-### Phase 4: Advanced Features ✅ (Current)
-- [x] **Real-time Execution Metrics** - Live file modification tracking with 3-second polling during task execution
-- [x] **Smart File Analysis** - Automatic code file detection, lines changed estimation, and file type breakdown
-- [x] **Recent Files Timeline** - Live display of recently modified files with timestamps and paths
-- [x] **Enhanced Execution Monitoring** - Comprehensive real-time metrics for files, lines, errors, warnings
-- [x] **Advanced Execution Controls** - Pause/Stop after next task completion
-- [x] **Intelligent Loop Prevention** - Smart existing project handling with analysis tasks
-- [x] **Git Integration** - Seamless commit workflow during execution control
-- [x] **AI Task Generation** - Real Claude Code integration for dynamic task creation
-- [x] **Modern Icon System** - Complete Lucide SVG icon integration
-- [x] **Professional UI Polish** - Sharp typography, consistent fonts, optimized layouts
 
-### Phase 5: Analytics & Optimization (Next)
+### Phase 4: Analytics & Optimization (Next)
 - [ ] Advanced workflow analytics and reporting
 - [ ] Multi-project workspace management
 - [ ] Team collaboration features
 - [ ] Custom workflow templates and sharing
 - [ ] Performance metrics and optimization tools
 
-### Phase 6: Mobile & Enterprise
+### Phase 5: Mobile & Enterprise
 - [ ] Native iOS app with SwiftUI
 - [ ] Native Android app with Kotlin/Compose
 - [ ] Cross-platform mobile with React Native/Flutter
@@ -405,8 +384,4 @@ This software is proprietary and confidential. Unauthorized copying, distributio
 
 ---
 
-**Phase 4 Advanced Features Complete**: AgentOps now features enhanced execution monitoring with real-time metrics, advanced execution controls with pause/stop after next task, intelligent loop prevention for existing projects, seamless git integration, and AI-powered task generation using real Claude Code CLI with **full tool permissions** for file operations. Built on robust backend with **comprehensive test coverage** including extensive API route testing (53 tests for api-routes.js alone) and comprehensive UI polish with Lucide icons and professional typography. 
-
-**🔧 CRITICAL FIX Applied**: Resolved Claude CLI task execution issue where tasks appeared to complete but no files were created. The system now properly grants tool permissions (`--allowedTools Write,Read,Bash,Edit`) and directory access (`--add-dir`) to enable real file operations during task execution.
-
-Ready for Phase 5 analytics and optimization features.
+Ready for Phase 4 analytics and optimization features.

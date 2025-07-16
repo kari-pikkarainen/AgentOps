@@ -2164,13 +2164,15 @@ textarea {
 }
 
 .progressive-analysis-modal {
-    background: var(--bg-color);
+    background: var(--surface);
     border-radius: 16px;
     padding: 2rem;
     max-width: 600px;
     width: 90%;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border);
+    position: relative;
+    z-index: 10001;
 }
 
 .progressive-analysis-header {
@@ -2180,7 +2182,7 @@ textarea {
 
 .progressive-analysis-header h3 {
     margin: 0 0 0.5rem 0;
-    color: var(--text-color);
+    color: var(--text-primary);
     font-size: 1.5rem;
     font-weight: 600;
 }
@@ -2203,9 +2205,9 @@ textarea {
     align-items: center;
     gap: 1rem;
     padding: 1rem;
-    background: var(--card-bg);
+    background: var(--background);
     border-radius: 12px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border);
     transition: all 0.3s ease;
 }
 
@@ -2221,9 +2223,11 @@ textarea {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--neural-purple-50);
+    background: rgba(99, 102, 241, 0.1);
     border-radius: 8px;
     flex-shrink: 0;
+    position: relative;
+    z-index: 10002;
 }
 
 .analysis-stage.completed .stage-icon {
@@ -2237,7 +2241,7 @@ textarea {
 
 .stage-name {
     font-weight: 600;
-    color: var(--text-color);
+    color: var(--text-primary);
     margin-bottom: 0.25rem;
 }
 
@@ -2256,14 +2260,14 @@ textarea {
 .progress-bar {
     flex: 1;
     height: 6px;
-    background: var(--border-color);
+    background: var(--border);
     border-radius: 3px;
     overflow: hidden;
 }
 
 .progress-fill {
     height: 100%;
-    background: var(--neural-purple-500);
+    background: var(--primary);
     width: 0%;
     transition: width 0.3s ease;
     border-radius: 3px;
@@ -2282,13 +2286,13 @@ textarea {
 }
 
 .overall-progress {
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid var(--border);
     padding-top: 1.5rem;
 }
 
 .overall-progress-bar {
     height: 8px;
-    background: var(--border-color);
+    background: var(--border);
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 0.5rem;
@@ -2296,7 +2300,7 @@ textarea {
 
 .overall-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--neural-purple-500), var(--neural-purple-600));
+    background: linear-gradient(90deg, var(--primary), var(--primary-hover));
     width: 0%;
     transition: width 0.3s ease;
     border-radius: 4px;
@@ -2315,4 +2319,81 @@ textarea {
     --success-bg: rgba(16, 185, 129, 0.1);
     --error-color: #ef4444;
     --error-bg: rgba(239, 68, 68, 0.1);
+}
+
+/* Enhanced Progressive Analysis Styles */
+.progressive-analysis-overlay {
+    backdrop-filter: blur(8px);
+    animation: fadeInOverlay 0.3s ease;
+}
+
+@keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.progressive-analysis-modal {
+    animation: slideInModal 0.4s ease;
+    box-shadow: 
+        0 25px 60px rgba(0, 0, 0, 0.12),
+        0 10px 30px rgba(0, 0, 0, 0.08),
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+@keyframes slideInModal {
+    from { 
+        opacity: 0; 
+        transform: translateY(-20px) scale(0.95);
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1);
+    }
+}
+
+.analysis-stage {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.analysis-stage.active {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(99, 102, 241, 0.02));
+    border-color: var(--primary);
+    animation: pulse-stage 2s infinite;
+}
+
+@keyframes pulse-stage {
+    0%, 100% { 
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+    }
+    50% { 
+        box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
+    }
+}
+
+.stage-icon {
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.analysis-stage.active .stage-icon {
+    animation: spin-icon 1.5s linear infinite;
+}
+
+@keyframes spin-icon {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.progress-fill {
+    background: linear-gradient(90deg, var(--primary), var(--primary-hover));
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
+}
+
+.analysis-stage.active .progress-fill {
+    animation: pulse-progress 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-progress {
+    from { box-shadow: 0 0 8px rgba(99, 102, 241, 0.3); }
+    to { box-shadow: 0 0 16px rgba(99, 102, 241, 0.6); }
 }

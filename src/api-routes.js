@@ -1973,30 +1973,30 @@ async function progressiveProjectAnalysis(req, res) {
         console.log(`Starting progressive analysis for: ${projectName}`);
         console.log(`Project path: ${projectPath}`);
         
-        // Analysis stages with individual timeouts
+        // Analysis stages with individual timeouts (increased for Claude CLI operations)
         const stages = [
             {
                 name: 'File System Scan',
                 description: 'Scanning project files and structure',
-                timeout: 15000, // 15 seconds
+                timeout: 60000, // 60 seconds (was 15s)
                 progress: 0
             },
             {
                 name: 'Technology Detection',
                 description: 'Identifying technologies and frameworks',
-                timeout: 20000, // 20 seconds  
+                timeout: 90000, // 90 seconds (was 20s)
                 progress: 0
             },
             {
                 name: 'Architecture Analysis',
                 description: 'Analyzing project architecture and patterns',
-                timeout: 45000, // 45 seconds
+                timeout: 120000, // 120 seconds (was 45s)
                 progress: 0
             },
             {
                 name: 'Finalization',
                 description: 'Generating final analysis report',
-                timeout: 10000, // 10 seconds
+                timeout: 30000, // 30 seconds (was 10s)
                 progress: 0
             }
         ];

@@ -258,7 +258,7 @@ class AgentOpsWorkflow {
                 }
                 break;
             case 'monitoringStarted':
-                console.log('File monitoring started for:', message.data.path);
+                console.log('File monitoring started for:', message.data.projectPath);
                 break;
             case 'monitoringStopped':
                 console.log('File monitoring stopped');
@@ -1495,9 +1495,14 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
             
             if (response.ok) {
                 const data = await response.json();
-                if (data.success) {
+                console.debug('Metrics API response:', data);
+                if (data.success && data.metrics) {
                     this.updateExecutionMetricsUI(data.metrics);
+                } else {
+                    console.debug('Metrics API returned unsuccessful response or missing metrics:', data);
                 }
+            } else {
+                console.debug('Metrics API response not ok:', response.status, response.statusText);
             }
         } catch (error) {
             // Silently fail polling - don't interrupt task execution
@@ -1508,30 +1513,40 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
     updateExecutionMetricsUI(metrics) {
         // Update the execution monitoring UI with live metrics
         const statsContainer = document.querySelector('.execution-stats');
-        if (!statsContainer) return;
+        if (!statsContainer || !metrics) return;
+        
+        // Ensure metrics has expected structure with defaults
+        const safeMetrics = {
+            filesModified: metrics.filesModified || 0,
+            linesChanged: metrics.linesChanged || 0,
+            newFiles: metrics.newFiles || 0,
+            fileTypes: metrics.fileTypes || {},
+            recentFiles: metrics.recentFiles || [],
+            ...metrics
+        };
         
         // Update files modified counter
         const filesModifiedElement = statsContainer.querySelector('.files-modified');
         if (filesModifiedElement) {
-            filesModifiedElement.textContent = metrics.filesModified;
+            filesModifiedElement.textContent = safeMetrics.filesModified;
         }
         
         // Update lines changed counter
         const linesChangedElement = statsContainer.querySelector('.lines-changed');
         if (linesChangedElement) {
-            linesChangedElement.textContent = metrics.linesChanged;
+            linesChangedElement.textContent = safeMetrics.linesChanged;
         }
         
         // Update new files counter
         const newFilesElement = statsContainer.querySelector('.new-files');
         if (newFilesElement) {
-            newFilesElement.textContent = metrics.newFiles;
+            newFilesElement.textContent = safeMetrics.newFiles;
         }
         
         // Update file types breakdown
         const fileTypesElement = statsContainer.querySelector('.file-types');
-        if (fileTypesElement && Object.keys(metrics.fileTypes).length > 0) {
-            const typesList = Object.entries(metrics.fileTypes)
+        if (fileTypesElement && Object.keys(safeMetrics.fileTypes).length > 0) {
+            const typesList = Object.entries(safeMetrics.fileTypes)
                 .map(([ext, count]) => `${ext}: ${count}`)
                 .join(', ');
             fileTypesElement.textContent = typesList;
@@ -1539,16 +1554,16 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
         
         // Update recent files list
         const recentFilesElement = statsContainer.querySelector('.recent-files');
-        if (recentFilesElement && metrics.recentFiles.length > 0) {
-            recentFilesElement.innerHTML = metrics.recentFiles
+        if (recentFilesElement && safeMetrics.recentFiles.length > 0) {
+            recentFilesElement.innerHTML = safeMetrics.recentFiles
                 .map(file => `<div class="recent-file">${file.path} <span class="file-time">${new Date(file.modified).toLocaleTimeString()}</span></div>`)
                 .join('');
         }
         
         // Update last updated timestamp
         const lastUpdatedElement = statsContainer.querySelector('.last-updated');
-        if (lastUpdatedElement) {
-            lastUpdatedElement.textContent = `Last updated: ${new Date(metrics.lastUpdated).toLocaleTimeString()}`;
+        if (lastUpdatedElement && safeMetrics.lastUpdated) {
+            lastUpdatedElement.textContent = `Last updated: ${new Date(safeMetrics.lastUpdated).toLocaleTimeString()}`;
         }
     }
 
@@ -1761,6 +1776,7 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
             progressContainer.style.display = 'none';
         }
     }
+
 
     simulateProgressiveUpdates() {
         // Simulate the 4 stages with realistic timing
