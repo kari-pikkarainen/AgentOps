@@ -360,6 +360,30 @@ npm run test:coverage # Run tests with coverage report
 - **Memory Usage**: Under 512MB for desktop application
 - **Real-time Communication**: WebSocket for live updates
 
+## ⚠️ Known Issues
+
+### Claude Code Timeouts
+- **Issue**: Tasks may timeout if Claude Code takes longer than expected (5+ minutes)
+- **Symptoms**: Task shows as "running" but no progress, eventual timeout error
+- **Workaround**: 
+  - Stop the task and restart with smaller, more focused tasks
+  - Check Claude Code CLI is responding: `claude --help`
+  - Ensure proper tool permissions are granted (`--allowedTools` and `--add-dir`)
+
+### Progressive Analysis Failures
+- **Issue**: Project analysis stages may fail with timeout errors
+- **Symptoms**: "Stage 1 failed" or "Stage 2 failed" messages
+- **Workaround**: 
+  - Retry the analysis - timeouts have been increased to 60-120 seconds
+  - For large projects, ensure sufficient system resources
+  - Check that Claude Code CLI is accessible and responsive
+
+
+### WebSocket Connection Drops
+- **Issue**: Real-time updates may stop if WebSocket connection is lost
+- **Symptoms**: UI stops updating, no new activity logs appear
+- **Workaround**: Refresh the browser page to reconnect
+
 ## 📄 License & Ownership
 
 **Copyright © 2025 Kari Pikkarainen. All rights reserved.**
