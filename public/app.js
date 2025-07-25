@@ -45,10 +45,11 @@ class AgentOpsWorkflow {
         // Navigation controls
         document.getElementById('prev-btn').addEventListener('click', () => this.previousStep());
         document.getElementById('next-btn').addEventListener('click', () => this.nextStep());
+        document.getElementById('step1-next-btn').addEventListener('click', () => this.nextStep());
         document.getElementById('start-execution-btn').addEventListener('click', () => this.startExecution());
 
         // Step 1: Project Specification
-        ['project-name', 'claude-specification', 'additional-notes', 'existing-project-name'].forEach(id => {
+        ['project-name', 'claude-specification', 'existing-project-name'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('input', () => this.saveProjectData());
@@ -66,8 +67,11 @@ class AgentOpsWorkflow {
         // Settings
         document.getElementById('settings-btn').addEventListener('click', () => this.openSettings());
 
-        // AI Spec Generation
-        document.getElementById('generate-spec-btn').addEventListener('click', () => this.openSpecGeneratorModal());
+        // AI Spec Generation (only if element exists)
+        const generateSpecBtn = document.getElementById('generate-spec-btn');
+        if (generateSpecBtn) {
+            generateSpecBtn.addEventListener('click', () => this.openSpecGeneratorModal());
+        }
 
         // Step 2: Folder Selection
         const browseFolderBtn = document.getElementById('browse-folder-btn');
@@ -111,9 +115,16 @@ class AgentOpsWorkflow {
         document.getElementById('select-folder-btn').addEventListener('click', () => this.selectCurrentFolder());
         document.getElementById('cancel-folder-select-btn').addEventListener('click', () => this.closeFolderSelector());
 
-        // AI Spec Generator Modal
-        document.getElementById('generate-spec-confirm-btn').addEventListener('click', () => this.generateAISpecification());
-        document.getElementById('cancel-spec-gen-btn').addEventListener('click', () => this.closeSpecGeneratorModal());
+        // AI Spec Generator Modal (only if elements exist)
+        const generateSpecConfirmBtn = document.getElementById('generate-spec-confirm-btn');
+        if (generateSpecConfirmBtn) {
+            generateSpecConfirmBtn.addEventListener('click', () => this.generateAISpecification());
+        }
+        
+        const cancelSpecGenBtn = document.getElementById('cancel-spec-gen-btn');
+        if (cancelSpecGenBtn) {
+            cancelSpecGenBtn.addEventListener('click', () => this.closeSpecGeneratorModal());
+        }
 
         // Modal close buttons
         document.querySelectorAll('.modal-close').forEach(btn => {
@@ -1216,6 +1227,7 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
 
     async startExecution() {
         this.isExecuting = true;
+        this.executionStartTime = Date.now(); // Track execution start time
         
         document.getElementById('stop-execution-btn').disabled = false;
         document.getElementById('start-execution-btn').disabled = true;
@@ -1565,6 +1577,95 @@ Generate 6-10 tasks. Be specific and actionable. No markdown formatting, just va
         if (lastUpdatedElement && safeMetrics.lastUpdated) {
             lastUpdatedElement.textContent = `Last updated: ${new Date(safeMetrics.lastUpdated).toLocaleTimeString()}`;
         }
+        
+        // Update additional execution stats
+        this.updateAdditionalStats(statsContainer);
+        
+        // Update architecture stats based on recent file changes
+        this.updateArchitectureStatsFromMetrics(safeMetrics);
+    }
+    
+    updateAdditionalStats(statsContainer) {
+        // Calculate additional execution statistics from task data
+        const completedTasks = this.taskList.filter(task => task.status === 'completed');
+        const failedTasks = this.taskList.filter(task => task.status === 'failed');
+        const totalTasks = completedTasks.length + failedTasks.length;
+        
+        // Tasks completed
+        const tasksCompletedElement = statsContainer.querySelector('.tasks-completed');
+        if (tasksCompletedElement) {
+            tasksCompletedElement.textContent = `${completedTasks.length}/${this.taskList.length}`;
+        }
+        
+        // Success rate
+        const successRateElement = statsContainer.querySelector('.success-rate');
+        if (successRateElement) {
+            const successRate = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
+            successRateElement.textContent = `${successRate}%`;
+        }
+        
+        // Total execution time
+        const executionTimeElement = statsContainer.querySelector('.execution-time');
+        if (executionTimeElement && this.executionStartTime) {
+            const elapsed = Math.floor((Date.now() - this.executionStartTime) / 1000);
+            executionTimeElement.textContent = this.formatDuration(elapsed);
+        }
+        
+        // Average task time
+        const avgTaskTimeElement = statsContainer.querySelector('.avg-task-time');
+        if (avgTaskTimeElement) {
+            const tasksWithMetrics = this.taskList.filter(task => task.metrics && task.metrics.duration);
+            if (tasksWithMetrics.length > 0) {
+                const avgDuration = tasksWithMetrics.reduce((sum, task) => sum + task.metrics.duration, 0) / tasksWithMetrics.length;
+                avgTaskTimeElement.textContent = this.formatDuration(Math.floor(avgDuration / 1000));
+            } else {
+                avgTaskTimeElement.textContent = '0s';
+            }
+        }
+    }
+    
+    formatDuration(seconds) {
+        if (seconds < 60) return `${seconds}s`;
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`;
+    }
+    
+    updateArchitectureStatsFromMetrics(metrics) {
+        // Update architecture layer stats based on recent file changes
+        if (!metrics.recentFiles || metrics.recentFiles.length === 0) return;
+        
+        // Analyze recent files to update architecture stats
+        metrics.recentFiles.forEach(file => {
+            const layerName = this.determineArchitectureLayer(file.path);
+            if (layerName && this.architectureStats[layerName]) {
+                // Update the edits count for the detected layer
+                this.architectureStats[layerName].edits = (this.architectureStats[layerName].edits || 0) + 1;
+                this.updateArchitectureStatsDisplay(layerName);
+            }
+        });
+    }
+    
+    determineArchitectureLayer(filePath) {
+        // Determine which architecture layer a file belongs to based on its path
+        const path = filePath.toLowerCase();
+        
+        if (path.includes('/components/') || path.includes('/ui/') || path.includes('.jsx') || path.includes('.vue') || path.includes('app.js') || path.includes('index.html')) {
+            return 'Presentation Layer';
+        } else if (path.includes('/api/') || path.includes('/routes/') || path.includes('/controllers/') || path.includes('server.js')) {
+            return 'API Layer';
+        } else if (path.includes('/services/') || path.includes('/business/') || path.includes('/logic/') || path.includes('/utils/')) {
+            return 'Business Logic Layer';
+        } else if (path.includes('/models/') || path.includes('/database/') || path.includes('/data/') || path.includes('.sql')) {
+            return 'Data Layer';
+        } else if (path.includes('/config/') || path.includes('/infrastructure/') || path.includes('docker') || path.includes('.yml') || path.includes('.yaml')) {
+            return 'Infrastructure Layer';
+        }
+        
+        return null; // File doesn't clearly belong to any layer
     }
 
     mergeTaskMetrics(existingMetrics, executionResult) {

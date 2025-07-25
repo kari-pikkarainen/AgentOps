@@ -1,360 +1,117 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Development guidance for Claude Code when working with this repository.
 
 ## Project Overview
 
-This is **AgentOps**, an AI agent monitoring, control, and workflow visualization platform that brings DevOps principles to AI agent development. It provides real-time oversight and management of AI agents like Claude Code throughout the entire development lifecycle.
+**AgentOps** is an AI agent monitoring and workflow visualization platform for Claude Code development lifecycle management.
 
 ## Architecture
 
-### Core System Components
+### Core Components
+- **Workflow Engine**: 5-step workflow with real-time visualization
+- **Claude Integration**: Direct CLI communication with proper tool permissions  
+- **Activity Monitor**: Real-time parsing and classification of agent activities
+- **File System**: Live monitoring with Chokidar, intelligent change detection
 
-The system follows a layered architecture with these key components:
+### Tech Stack
+- **Frontend**: HTML5/CSS3/JavaScript, WebSocket real-time updates
+- **Backend**: Node.js/Express, modular API routes, WebSocket handlers
+- **Testing**: Jest with 88.46% coverage (114+ tests, 7 suites)
+- **Quality**: 84% branch coverage, comprehensive error handling
 
-- **Workflow Visualization Engine**: Renders interactive workflow diagrams and real-time progress indicators
-- **Claude Code Integration Bridge**: Handles communication with Claude Code instances via command line interface
-- **Activity Monitoring Service**: Collects, processes, and stores all agent activities and decisions
-- **Testing & Coverage Dashboard**: Provides comprehensive test execution monitoring and code coverage visualization
-- **Configuration Management System**: Manages workflow definitions, user preferences, and system settings
+## Current Status
 
-### Data Models
-
-The system uses structured data models for:
-- **Workflow Definitions**: JSON-based workflow configurations with steps, dependencies, and execution logic
-- **Activity Records**: Timestamped records of all agent activities with metadata and performance metrics
-- **Test Execution Results**: Comprehensive test results with coverage data and quality gates
-- **Claude Code Instances**: Process management for multiple concurrent AI agent instances
-
-## Key Features
-
-### Phase 1 & 2 (Foundation) - ✅ COMPLETED
-- Real-time workflow visualization with interactive canvas
-- Activity timeline with filtering and search capabilities
-- Claude Code command line integration and process management
-- **TEST COVERAGE: 88.46%** with 114+ passing tests across 7 test suites (all tests passing)
-- **BRANCH COVERAGE: 84%** exceeding the 80% quality threshold
-- **API ROUTE TESTING: 53/53** api-routes.js tests now pass with comprehensive error handling coverage
-- **MODULAR ARCHITECTURE**: Extracted API routes and WebSocket handlers for improved testability
-- **QUALITY ASSURANCE**: All coverage thresholds met across statements, branches, functions, and lines
-- **BACKEND SERVICES**: Complete API infrastructure with WebSocket real-time communication
-
-### Phase 3 (Frontend Complete) - ✅ COMPLETED
-- **5-Step Workflow Interface**: Complete user journey from specification to execution
-- **Claude AI Integration**: Direct workflow integration for product specification generation
-- **Real File System Navigation**: Full directory browsing and project selection capabilities
-- **Intelligent Task Management**: AI-powered task generation, prioritization, and planning
-- **Live Execution Monitoring**: Real-time progress tracking with Claude instance management
-- **Modern Responsive UI**: Professional interface with animations, modals, and form interactions
-- **WebSocket Frontend Integration**: Real-time communication between frontend and backend
-- **Advanced File System API**: Backend endpoint for secure directory browsing and navigation
-- **Claude Code Settings Integration**: Comprehensive settings modal with auto-detection, status monitoring, and connection testing
-- **Neural Purple Brand System**: Complete color palette with CSS custom properties and semantic design tokens
-- **Contemporary Design Language**: Linear/Uizard-inspired aesthetics with Inter typography and abstract logo
-- **Enhanced User Experience**: Optimized header layout, horizontal navigation flow, and professional visual hierarchy
-
-### Phase 4 (Analytics & Optimization) - NEXT
-- Advanced workflow analytics and reporting dashboard
-- Multi-project workspace management
-- Team collaboration and workflow sharing capabilities
-- Custom workflow templates and configuration management
-- Performance metrics and optimization tools
-
-### Phase 5 (Enterprise & Mobile)
-- Enterprise features with multi-user support and authentication
-- Mobile client applications for iOS and Android
-- Advanced security and compliance features
-- Performance monitoring and optimization tools
+**Phase 4 Complete** - Production ready with:
+- ✅ 5-step workflow interface (Specification → Location → Tasks → Planning → Execution)
+- ✅ Real-time execution monitoring with live metrics
+- ✅ Architecture visualization with layer-based activity tracking
+- ✅ Enhanced stats: Tasks completed, success rate, execution time, avg task time
+- ✅ Project architecture stats synchronized with overall metrics
+- ✅ Sharp, angular UI design with Neural Purple theme
 
 ## Development Commands
 
 ```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm start
-
-# Run in development mode with auto-reload
-npm run dev
-
-# Run test suite (114 tests)
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage report
-npm run test:coverage
+npm install      # Install dependencies
+npm start        # Start production server
+npm run dev      # Start development server
+npm test         # Run test suite (114 tests)
+npm run test:coverage # Coverage report
 ```
 
-Current technology stack:
-- **Frontend**: Modern HTML5/CSS3/ES6+ JavaScript with responsive design and animations
-- **Backend**: Node.js with Express for REST API services
-- **Real-time**: WebSocket for live bidirectional communication
-- **File monitoring**: Chokidar for comprehensive file system watching
-- **UI/UX**: Professional interface with modal dialogs, form validation, and interactive components
-- **Process management**: Node.js child_process for Claude Code instance management
-- **Activity parsing**: Custom pattern recognition engine with intelligent classification
-- **Testing**: Jest with comprehensive mocking, enhanced API route coverage with 53 dedicated tests
-- **Architecture**: Modular design with separation of concerns and real-time communication
-- **Future**: React/TypeScript migration, Electron for desktop app, mobile clients
+## Critical Implementation Notes
 
-## Integration Points
-
-### Claude Code Communication
-The system integrates with Claude Code instances through:
-- Process spawning and management with full tool permissions
-- Standard I/O stream capture and parsing
-- Command injection and response handling
-- File system change monitoring
-- Real-time activity streaming
-
-#### Tool Permissions & Security
-**CRITICAL**: Claude CLI requires explicit tool permissions for file operations:
+### Claude CLI Tool Permissions
+**REQUIRED** for actual file operations:
 ```javascript
-// Required for task execution
 const args = ['--print', '--model', 'sonnet'];
-args.push('--allowedTools', 'Write,Read,Bash,Edit');  // Enable file operations
-args.push('--add-dir', workingDir);                   // Grant directory access
-```
-
-**Important Notes:**
-- Without `--allowedTools`, Claude cannot create/modify files
-- Without `--add-dir`, Claude cannot access project directories
-- Tasks will appear to "complete" but no files will be created without proper permissions
-- Always verify tool permissions are granted for actual file operations
-
-### File System Monitoring
-- Project root directory monitoring
-- Real-time change detection for code files
-- Git integration for version control tracking
-- Build artifact and test result monitoring
-
-### Real-time Execution Metrics
-The system provides live file modification tracking during task execution:
-- **Polling Interval**: 3-second updates during active task execution
-- **Smart File Detection**: Automatically identifies code files (js, py, html, css, etc.)
-- **Change Estimation**: Estimates lines changed based on file size delta
-- **File Type Breakdown**: Categorizes changes by file extension
-- **Recent Files Timeline**: Shows recently modified files with timestamps
-- **Memory Efficient**: Limited to 10 most recent files to prevent memory issues
-
-**API Endpoint**: `/api/v1/claude-code/live-metrics/:projectPath`
-- Configurable time window (default: 5 minutes)
-- Returns structured metrics for UI consumption
-- Handles URL encoding for complex project paths
-
-### Architecture Visualization System
-The system provides real-time architecture visualization through:
-- **Layer-based Architecture Rendering**: Visual representation of project layers (Presentation, Business Logic, API, Data, Infrastructure)
-- **Real-time Statistics Tracking**: Live file counts, edits, and test metrics for each architectural layer
-- **Component Activity Highlighting**: Visual indicators showing which components are actively being worked on during task execution
-- **Architecture Analysis Engine**: AI-powered project structure analysis to generate architecture diagrams
-- **Fallback Architecture Generation**: Smart fallback system when architecture analysis fails or returns unexpected data
-- **Statistics Integration**: Real project file analysis instead of mock data for accurate metrics display
-
-## API Structure
-
-The system exposes REST APIs for:
-- `/api/v1/claude-code/instances` - Claude Code instance management (✅ Implemented)
-- `/api/v1/claude-code/status` - Claude Code availability and status checking (✅ Implemented)
-- `/api/v1/claude-code/detect` - Auto-detection of Claude Code installation (✅ Implemented)
-- `/api/v1/claude-code/test` - Connection testing and validation (✅ Implemented)
-- `/api/v1/claude-code/generate-tasks` - AI-powered task generation (✅ Implemented)
-- `/api/v1/claude-code/live-metrics/:projectPath` - Real-time execution metrics (✅ Implemented)
-- `/api/v1/monitoring` - File system monitoring control (✅ Implemented)
-- `/api/v1/activities` - Activity monitoring with search/filter (✅ Implemented)
-- `/api/v1/filesystem/browse` - File system browsing and navigation (✅ Implemented)
-- `/api/v1/filesystem/analyze` - Project analysis and detection (✅ Implemented)
-- `/api/v1/git/commit` - Git repository commit operations (✅ Implemented)
-- `/api/v1/workflows` - Workflow management (Future)
-- `/api/v1/testing` - Test execution and coverage reporting (Future)
-- `/api/v1/config` - System configuration (Future)
-
-## Performance Requirements
-
-- UI updates within 100ms of activity occurrence
-- API response times under 200ms for 95% of requests
-- Support for 10+ concurrent Claude Code instances
-- Memory usage under 512MB for desktop application
-- Real-time WebSocket communication for live updates
-- **Execution Metrics**: 3-second polling during active task execution
-- **File Scanning**: Efficient directory traversal with smart filtering
-- **Memory Management**: Limited to 10 recent files to prevent memory leaks
-
-## Security Considerations
-
-- Token-based authentication for API access
-- TLS 1.3 for all network communications
-- AES-256 encryption for sensitive configuration data
-- Input validation and sanitization for all API endpoints
-- Process isolation for Claude Code instances
-
-## Future Development Roadmap
-
-### Phase 1: Core Foundation (✅ COMPLETED)
-- ✅ Basic web interface with workflow visualization
-- ✅ Activity timeline with mock data
-- ✅ Status dashboard and controls
-- ✅ WebSocket infrastructure for real-time updates
-- ✅ **TEST COVERAGE IMPROVEMENTS**: 88.46% coverage with 114 tests
-- ✅ **BRANCH COVERAGE ACHIEVEMENT**: 84% branch coverage exceeding 80% threshold
-- ✅ **MODULAR REFACTORING**: Extracted api-routes.js and websocket-handler.js
-- ✅ **COMPREHENSIVE TESTING**: 7 test suites with mocked dependencies
-- ✅ **QUALITY THRESHOLDS**: All coverage metrics above 80% requirement
-
-### Phase 2: Real Integration (✅ COMPLETED)
-- ✅ Claude Code process management and communication
-- ✅ File system monitoring and change detection
-- ✅ Real-time activity parsing and display
-- ✅ Command execution and output capture
-- ✅ REST API endpoints and WebSocket integration
-- ✅ Activity search, filtering, and statistics
-- ✅ Multi-instance support (up to 10 concurrent)
-- ✅ **ROBUST ERROR HANDLING**: Comprehensive error testing across all modules
-- ✅ **INTEGRATION TESTING**: Full end-to-end API and WebSocket testing
-
-### Phase 3: Frontend Complete (✅ COMPLETED)
-- Complete 5-step workflow interface from specification to execution
-- Claude AI integration for product specification generation
-- Real file system navigation and project selection
-- AI-powered task generation, prioritization, and planning
-- Live execution monitoring with Claude instance management
-- Modern responsive UI with professional animations and interactions
-- WebSocket frontend integration for real-time communication
-
-### Phase 4: Advanced Features (✅ COMPLETED)
-- **Real-time Execution Metrics**: Live file modification tracking with 3-second polling during task execution
-- **Smart File Analysis**: Automatic code file detection and lines changed estimation
-- **Recent Files Timeline**: Live display of modified files with timestamps
-- Visual architecture diagrams with interactive layer-based components
-- Real-time architecture statistics with file counts, edits, and test metrics  
-- Smart instance management (never exceeds task count)
-- Simplified execution controls (removed confusing pause states)
-- Long-running task support (5+ minute timeout handling)
-- Active component highlighting during task execution
-- Enhanced execution monitoring with real-time metrics display
-- Advanced execution controls with pause/stop after next task completion
-- Intelligent loop prevention for existing projects with analysis tasks
-- Git integration with seamless commit workflow during execution control
-- AI-powered task generation using real Claude Code CLI integration
-- Modern icon system with complete Lucide SVG implementation
-- Professional UI polish with sharp typography and consistent fonts
-
-### Phase 5: Analytics & Optimization (Next)
-- Workflow designer with drag-and-drop interface
-- Custom workflow templates and sharing
-- Advanced analytics and performance metrics dashboard
-- Multi-project support and management
-- Enhanced UI with React/TypeScript migration
-- Testing dashboard with coverage visualization
-
-### Phase 5: Mobile & Enterprise
-- **Mobile Client Development**:
-  - Native iOS app with SwiftUI
-  - Native Android app with Kotlin/Compose
-  - Cross-platform option with React Native or Flutter
-  - Mobile-optimized UI for monitoring on-the-go
-  - Push notifications for important events
-  - Offline viewing of cached activity data
-- Enterprise authentication and user management
-- Team collaboration and workflow sharing
-- Advanced security and compliance features
-
-## Testing Guidelines
-
-### Test Coverage Standards
-- **Minimum Coverage**: 80% for statements, branches, functions, and lines
-- **Current Achievement**: 88.46% statement coverage, 84% branch coverage with 114+ tests (all passing)
-- **API Route Testing**: Fixed all 53 api-routes.js tests with comprehensive error handling and edge case coverage
-- **Quality Status**: ✅ ALL TESTS PASSING - Comprehensive coverage with robust error handling testing
-- **Test Organization**: Separate test files for each module with comprehensive mocking and extensive API testing
-
-### Test Structure
-```
-test/
-├── api-routes.test.js          # Comprehensive REST API testing (53 tests)
-│                               #   - Claude Code instance management
-│                               #   - Project state persistence 
-│                               #   - File system browsing & analysis
-│                               #   - Task generation & git integration
-├── websocket-handler.test.js   # WebSocket connection and message testing
-├── server-integration.test.js  # Full integration testing
-├── process-manager.test.js     # Claude Code process management
-├── file-monitor.test.js        # File system monitoring
-├── activity-parser.test.js     # Activity parsing and classification
-└── server.test.js              # Basic server functionality
-```
-
-### Test Commands
-```bash
-npm test                # Run all tests (114+ tests - all passing including fixed API routes)
-npm run test:watch      # Run tests in watch mode for development
-npm run test:coverage   # Generate coverage report with detailed API route metrics
-```
-
-### Recent Test Coverage Improvements
-- **Fixed All API Route Tests**: Applied Combined Approach (quick fixes + enhanced mocking) to resolve 6 failing tests
-- **Error Handling Coverage**: Improved testing of error scenarios for Claude Code detection, file system operations, and git integration
-- **Test Expectation Alignment**: Adjusted test expectations to match actual implementation behavior rather than idealized success scenarios
-- **Comprehensive Error Testing**: All API endpoints now properly test both success and failure paths
-
-### Testing Best Practices
-- **Mock Dependencies**: All external dependencies are properly mocked
-- **Isolated Testing**: Each module is tested in isolation  
-- **Error Coverage**: All error paths and edge cases are tested
-- **Integration Tests**: End-to-end testing of API and WebSocket flows
-- **Async Handling**: Proper handling of async operations and promises
-
-### Adding New Tests
-When adding new functionality:
-1. Create corresponding test file if new module
-2. Mock all external dependencies before requiring modules (fs, child_process, etc.)
-3. Test both success and error scenarios comprehensively
-4. Follow api-routes.test.js pattern for extensive API endpoint testing
-5. Include project state management, Claude CLI integration, and file system operations
-6. Update test documentation in this file
-
-## Troubleshooting Guide
-
-### Common Issues and Solutions
-
-#### Issue: Tasks Complete But No Files Created
-**Symptoms:**
-- Claude CLI reports task completion
-- No actual files appear in project directory
-- Task execution logs show success but empty results
-
-**Root Cause:** Missing Claude CLI tool permissions
-
-**Solution:**
-```javascript
-// Ensure these flags are present in Claude CLI invocation:
 args.push('--allowedTools', 'Write,Read,Bash,Edit');
-args.push('--add-dir', projectPath);
+args.push('--add-dir', workingDir);
 ```
 
-**Verification:**
-```bash
-# Test tool permissions manually:
-echo 'Use Write tool to create test.txt' | claude --print --model sonnet --allowedTools Write --add-dir /path/to/project
+**Without these flags:**
+- Tasks appear to complete but no files are created
+- Claude cannot access project directories
+- Operations fail silently
+
+### API Structure
+Key endpoints:
+- `/api/v1/claude-code/instances` - Process management
+- `/api/v1/claude-code/live-metrics/:projectPath` - Real-time file metrics
+- `/api/v1/filesystem/browse` - Directory navigation
+- `/api/v1/claude-code/generate-tasks` - AI task generation
+
+### Testing Guidelines
+- **Coverage Target**: 80% minimum (currently 88.46%)
+- **Test Structure**: 7 suites with comprehensive mocking
+- **API Routes**: 53 dedicated tests with error handling
+- **Integration**: Full end-to-end WebSocket and API testing
+
+## Common Issues & Solutions
+
+### Tasks Complete But No Files Created
+**Cause**: Missing tool permissions
+**Fix**: Ensure `--allowedTools` and `--add-dir` flags are present
+
+### Claude CLI Timeout/Hanging  
+**Causes**: Missing permissions, incorrect working directory, malformed prompts
+**Solutions**: Verify flags, check project path, validate prompt formatting
+
+### Architecture Stats Not Updating
+**Fixed**: Architecture stats now update automatically based on file changes during execution
+
+## File Organization
+
+```
+src/
+├── api-routes.js       # REST endpoints, Claude integration
+├── process-manager.js  # Claude CLI process management  
+├── file-monitor.js     # Chokidar file system monitoring
+├── websocket-handler.js # Real-time communication
+└── activity-parser.js  # Intelligent activity classification
+
+public/
+├── index.html          # 5-step workflow interface
+├── app.js              # AgentOpsWorkflow class
+└── styles.css          # Neural Purple theme, sharp corners
+
+test/                   # 114+ tests across 7 suites
 ```
 
-#### Issue: Claude CLI Timeout/Hanging
-**Symptoms:**
-- Tasks timeout after 5 minutes
-- No output from Claude CLI
-- Process needs to be killed
+## Next Phase
 
-**Common Causes:**
-1. Missing tool permissions (Claude waits for permission grant)
-2. Incorrect working directory
-3. Malformed prompts
-4. Session state conflicts
+**Phase 5**: Advanced analytics dashboard, multi-project workspace, React/TypeScript migration
 
-**Solutions:**
-1. Verify `--allowedTools` and `--add-dir` flags
-2. Ensure project path is correctly set in `buildProjectContext()`
-3. Check prompt formatting in `buildTaskExecutionPrompt()`
-4. Reset session state if needed
+## Development Principles
+
+1. **Maintain test coverage** above 80%
+2. **Follow existing patterns** for API routes and WebSocket handlers  
+3. **Use proper error handling** with comprehensive testing
+4. **Ensure Claude CLI permissions** for file operations
+5. **Keep UI sharp and angular** with Neural Purple theme
+6. **Update both overall and architecture stats** simultaneously
+
+---
+
+Ready for Phase 5 development.

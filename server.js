@@ -20,6 +20,13 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// Debug logging middleware
+app.use((req, res, next) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] ${req.method} ${req.url} - ${req.ip}`);
+    next();
+});
+
 // Set up cross-component integration
 function setupCrossComponentIntegration() {
     processManager.on('processOutput', (output) => {
@@ -59,8 +66,24 @@ configureApiRoutes(app);
 const wsHandler = new WebSocketHandler(wss);
 
 // WebSocket connection handling
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
+    const timestamp = new Date().toISOString();
+    const clientIP = req.socket.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+    console.log(`[${timestamp}] WebSocket client connected from ${clientIP}`);
+    console.log(`[${timestamp}] Active WebSocket connections: ${wss.clients.size}`);
+    
     wsHandler.handleConnection(ws);
+    
+    ws.on('close', () => {
+        const closeTimestamp = new Date().toISOString();
+        console.log(`[${closeTimestamp}] WebSocket client disconnected from ${clientIP}`);
+        console.log(`[${closeTimestamp}] Active WebSocket connections: ${wss.clients.size}`);
+    });
+    
+    ws.on('error', (error) => {
+        const errorTimestamp = new Date().toISOString();
+        console.log(`[${errorTimestamp}] WebSocket error from ${clientIP}:`, error.message);
+    });
 });
 
 // Export for testing
@@ -72,8 +95,13 @@ function createServer() {
 if (require.main === module) {
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, () => {
-        console.log(`AgentOps running on http://localhost:${PORT}`);
-        console.log('Press Ctrl+C to stop the server');
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] ====================================`);
+        console.log(`[${timestamp}] 🚀 AgentOps Server Started`);
+        console.log(`[${timestamp}] 🌐 URL: http://localhost:${PORT}`);
+        console.log(`[${timestamp}] 📊 Debug logging enabled`);
+        console.log(`[${timestamp}] ====================================`);
+        console.log(`[${timestamp}] Press Ctrl+C to stop the server`);
     });
 }
 

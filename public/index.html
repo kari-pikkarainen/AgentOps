@@ -247,54 +247,10 @@ Your project description...
 - Architecture decisions
 
 ... etc"></textarea>
-                            <div class="spec-actions">
-                                <button type="button" id="generate-spec-btn" class="btn btn-outline">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                    </svg>
-                                    Generate with AI
-                                </button>
-                                <button type="button" onclick="togglePreview()" class="btn btn-outline">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                        <circle cx="12" cy="12" r="3"/>
-                                    </svg>
-                                    Preview
-                                </button>
-                                <button type="button" onclick="extractProjectDetails()" class="btn btn-outline">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="11" cy="11" r="8"/>
-                                        <path d="m21 21-4.35-4.35"/>
-                                    </svg>
-                                    Extract Details
-                                </button>
-                            </div>
                         </div>
                         <small class="form-help">Enter a project specification or generate one using AI. This will be parsed to extract project details.</small>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="additional-notes">Additional Notes (Optional)</label>
-                        <textarea id="additional-notes" rows="3" 
-                                  placeholder="Any additional thoughts, constraints, or modifications to the Claude specification..."></textarea>
-                    </div>
-                    
-                    <div class="preview-section" id="spec-preview" style="display: none;">
-                        <h3>📄 Specification Preview</h3>
-                        <div class="preview-content" id="preview-content"></div>
-                        <button class="btn btn-outline btn-small" onclick="togglePreview()">Hide Preview</button>
-                    </div>
-                    
-                        <div class="action-buttons">
-                            <button class="btn btn-outline" onclick="togglePreview()">👁️ Preview Specification</button>
-                            <button class="btn btn-outline" onclick="extractProjectDetails()">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="11" cy="11" r="8"/>
-                                    <path d="m21 21-4.35-4.35"/>
-                                </svg>
-                                Extract Project Details
-                            </button>
-                        </div>
                     </div>
 
                     <!-- Existing Project Section -->
@@ -327,6 +283,15 @@ Your project description...
                                 <button class="btn btn-outline btn-small" onclick="viewProjectFiles()">📁 View Files</button>
                             </div>
                         </div>
+                    </div>
+                    
+                    <div class="step-navigation">
+                        <button id="step1-next-btn" class="btn btn-primary">
+                            Next
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m9 18 6-6-6-6"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -498,51 +463,67 @@ Your project description...
                                 </svg>
                                 Live Execution & Monitoring
                             </h2>
-                            <div class="execution-stats" id="execution-stats">
-                                <div class="stat-item">
-                                    <span class="stat-label">Files Modified:</span>
-                                    <span class="stat-value files-modified">0</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">Lines Changed:</span>
-                                    <span class="stat-value lines-changed">0</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">New Files:</span>
-                                    <span class="stat-value new-files">0</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">File Types:</span>
-                                    <span class="stat-value file-types">-</span>
-                                </div>
-                                <div class="stat-item full-width">
-                                    <span class="stat-label">Recent Files:</span>
-                                    <div class="recent-files"></div>
-                                </div>
-                                <div class="stat-item full-width">
-                                    <span class="stat-label last-updated">Last updated: -</span>
-                                </div>
+                            <div class="execution-controls">
+                                <button id="stop-execution-btn" class="btn btn-danger">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                    </svg>
+                                    Stop Execution
+                                </button>
+                                <button id="stop-after-next-btn" class="btn btn-outline">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                    </svg>
+                                    Stop After Current Task
+                                </button>
                             </div>
                         </div>
-                        <div class="execution-controls">
-                            <button id="stop-execution-btn" class="btn btn-danger">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                </svg>
-                                Stop Execution
-                            </button>
-                            <button id="stop-after-next-btn" class="btn btn-outline">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                </svg>
-                                Stop After Current Task
-                            </button>
+                        <div class="execution-stats" id="execution-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Files Modified:</span>
+                                <span class="stat-value files-modified">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Lines Changed:</span>
+                                <span class="stat-value lines-changed">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">New Files:</span>
+                                <span class="stat-value new-files">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Tasks Completed:</span>
+                                <span class="stat-value tasks-completed">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Success Rate:</span>
+                                <span class="stat-value success-rate">0%</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Execution Time:</span>
+                                <span class="stat-value execution-time">0s</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">File Types:</span>
+                                <span class="stat-value file-types">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Avg Task Time:</span>
+                                <span class="stat-value avg-task-time">0s</span>
+                            </div>
+                            <div class="stat-item full-width">
+                                <span class="stat-label">Recent Files:</span>
+                                <div class="recent-files"></div>
+                            </div>
+                            <div class="stat-item full-width">
+                                <span class="stat-label last-updated">Last updated: -</span>
+                            </div>
                         </div>
                     </div>
                     
                     <div class="execution-layout">
-                        <div class="left-panel">
-                            <div class="architecture-section">
+                        <div class="execution-left-column">
+                            <div class="execution-card architecture-section">
                                 <h3>Project Architecture</h3>
                                 <div id="architecture-diagram" class="architecture-diagram">
                                     <!-- Architecture layers will be rendered here -->
@@ -550,24 +531,22 @@ Your project description...
                             </div>
                         </div>
                         
-                        <div class="middle-panel">
-                            <div class="task-progress-section">
+                        <div class="execution-right-column">
+                            <div class="execution-card task-progress-section">
                                 <h3>Task Progress</h3>
                                 <div id="task-progress-list" class="task-progress-list">
                                     <!-- Task progress items will be populated here -->
                                 </div>
                             </div>
                             
-                            <div class="claude-instances-section">
+                            <div class="execution-card claude-instances-section">
                                 <h3>Running Processes</h3>
                                 <div id="claude-instances-list" class="instances-list">
                                     <!-- Claude instances will be populated here -->
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="right-panel">
-                            <div class="live-activity-section">
+                            
+                            <div class="execution-card live-activity-section">
                                 <h3>Live Feed</h3>
                                 <div class="activity-filters">
                                     <button class="filter-btn active" data-filter="all">All</button>
